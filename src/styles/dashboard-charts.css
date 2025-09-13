@@ -1,0 +1,343 @@
+/* Dashboard Charts Styles */
+
+/* Chart Container Styling */
+.chart-container {
+  width: 100%;
+  height: 100%;
+  padding: 0.5rem;
+}
+
+/* Custom Tooltip Styling */
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+.recharts-tooltip-content {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+}
+
+.recharts-tooltip-label {
+  color: #1e293b !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.recharts-tooltip-item {
+  color: #475569 !important;
+}
+
+/* Legend Styling */
+.recharts-legend-wrapper {
+  padding-top: 1rem !important;
+}
+
+.recharts-legend-item {
+  margin-right: 1rem !important;
+}
+
+.recharts-legend-item-text {
+  color: #475569 !important;
+  font-size: 0.875rem !important;
+}
+
+/* Responsive Chart Heights */
+.chart-height-sm {
+  height: 200px;
+}
+
+.chart-height-md {
+  height: 240px;
+}
+
+.chart-height-lg {
+  height: 320px;
+}
+
+/* Grid Styling */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: #f1f5f9 !important;
+  stroke-dasharray: 3 3 !important;
+}
+
+/* Axis Styling */
+.recharts-xAxis .recharts-cartesian-axis-tick-value,
+.recharts-yAxis .recharts-cartesian-axis-tick-value {
+  fill: #64748b !important;
+  font-size: 12px !important;
+}
+
+/* Pie Chart Legend */
+.pie-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.pie-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.875rem;
+}
+
+.pie-legend-color {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+}
+
+/* Chart Loading State */
+.chart-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* Chart Error State */
+.chart-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #ef4444;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Revenue Analytics Section */
+.revenue-analytics-header {
+  display: flex;
+  align-items: center;
+  justify-content: between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.revenue-analytics-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.revenue-analytics-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .chart-height-lg {
+    height: 240px;
+  }
+  
+  .chart-height-md {
+    height: 200px;
+  }
+  
+  .chart-height-sm {
+    height: 180px;
+  }
+  
+  .recharts-legend-wrapper {
+    padding-top: 0.5rem !important;
+  }
+  
+  .recharts-legend-item {
+    margin-right: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .recharts-legend-item-text {
+    font-size: 0.75rem !important;
+  }
+  
+  .pie-legend {
+    gap: 0.25rem;
+  }
+  
+  .pie-legend-item {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .revenue-analytics-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .chart-height-lg,
+  .chart-height-md {
+    height: 180px;
+  }
+  
+  .chart-height-sm {
+    height: 160px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .recharts-tooltip-content {
+    background: #1e293b !important;
+    border-color: #475569 !important;
+    color: #f1f5f9 !important;
+  }
+  
+  .recharts-tooltip-label {
+    color: #f1f5f9 !important;
+  }
+  
+  .recharts-tooltip-item {
+    color: #cbd5e1 !important;
+  }
+  
+  .recharts-legend-item-text {
+    color: #cbd5e1 !important;
+  }
+  
+  .recharts-xAxis .recharts-cartesian-axis-tick-value,
+  .recharts-yAxis .recharts-cartesian-axis-tick-value {
+    fill: #94a3b8 !important;
+  }
+  
+  .recharts-cartesian-grid-horizontal line,
+  .recharts-cartesian-grid-vertical line {
+    stroke: #374151 !important;
+  }
+}
+
+/* Chart Animation */
+.recharts-line,
+.recharts-area,
+.recharts-bar-rectangle,
+.recharts-pie-sector {
+  transition: all 0.3s ease;
+}
+
+.recharts-line:hover,
+.recharts-area:hover,
+.recharts-bar-rectangle:hover {
+  opacity: 0.8;
+}
+
+/* Chart Focus States */
+.recharts-tooltip-cursor {
+  stroke: #3b82f6 !important;
+  stroke-width: 2 !important;
+  stroke-dasharray: 5 5 !important;
+}
+
+/* Partner Analytics Section Styling */
+.partner-analytics-section {
+  border-top: 2px solid #f1f5f9;
+  padding-top: 2rem;
+  margin-top: 2rem;
+}
+
+.partner-analytics-header {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-left: 4px solid #8b5cf6;
+}
+
+.partner-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.partner-insight-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.2s ease;
+}
+
+.partner-insight-item:hover {
+  background-color: #f8fafc;
+  border-radius: 0.25rem;
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.partner-insight-item:last-child {
+  border-bottom: none;
+}
+
+/* Top Partners Chart Styling */
+.top-partners-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.top-partner-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.top-partner-item:hover {
+  background-color: #f8fafc;
+}
+
+.partner-rank-indicator {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  margin-right: 0.75rem;
+}
+
+.partner-earnings-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.125rem;
+}
+
+/* Custom Chart Colors for Brand Consistency */
+.chart-primary {
+  color: #1e40af;
+}
+
+.chart-secondary {
+  color: #10b981;
+}
+
+.chart-accent {
+  color: #f59e0b;
+}
+
+.chart-danger {
+  color: #ef4444;
+}
+
+.chart-purple {
+  color: #8b5cf6;
+}

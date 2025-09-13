@@ -1,0 +1,406 @@
+/* Testimonies View Styles */
+.testimonies-view {
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.testimonies-header {
+  margin-bottom: 2rem;
+}
+
+.testimonies-list {
+  min-height: 400px;
+}
+
+.testimony-card {
+  transition: all 0.3s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.testimony-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  border-color: #10b981;
+}
+
+/* Avatar styles for testimonies */
+.testimony-card .avatar {
+  border-radius: 50%;
+  overflow: hidden;
+  background-color: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.testimony-card .avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Rating stars */
+.testimony-rating {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.testimony-rating .star {
+  width: 1rem;
+  height: 1rem;
+  color: #fbbf24;
+  fill: currentColor;
+}
+
+/* Service type badges */
+.service-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f3f4f6;
+  color: #374151;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Status badges */
+.status-badge-pending {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.status-badge-approved {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge-rejected {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.status-badge-featured {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+/* Action buttons in cards */
+.testimony-card .action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.testimony-card:hover .action-buttons {
+  opacity: 1;
+}
+
+/* Empty state styles */
+.testimonies-empty-state {
+  text-align: center;
+  padding: 3rem 2rem;
+}
+
+.testimonies-empty-state .empty-icon {
+  width: 4rem;
+  height: 4rem;
+  color: #9ca3af;
+  margin: 0 auto 1rem;
+}
+
+/* Dialog form styles */
+.testimony-form {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.testimony-form .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.testimony-form .form-grid .full-width {
+  grid-column: 1 / -1;
+}
+
+/* Rating selector in form */
+.rating-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rating-selector .star-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: background-color 0.2s ease;
+}
+
+.rating-selector .star-button:hover {
+  background-color: #f3f4f6;
+}
+
+.rating-selector .star-button .star {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: #d1d5db;
+  transition: color 0.2s ease;
+}
+
+.rating-selector .star-button.active .star,
+.rating-selector .star-button:hover .star {
+  color: #fbbf24;
+  fill: currentColor;
+}
+
+/* Statistics cards for admin */
+.testimonies-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.stat-card .stat-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-card .stat-content {
+  flex: 1;
+}
+
+.stat-card .stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.25rem;
+}
+
+.stat-card .stat-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Filter and search section */
+.testimonies-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+}
+
+@media (min-width: 640px) {
+  .testimonies-filters {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.search-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  max-width: 20rem;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Project title highlighting */
+.project-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #3b82f6;
+  background: #eff6ff;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+  width: fit-content;
+}
+
+/* Responsive design */
+@media (max-width: 1024px) {
+  .testimonies-view {
+    padding: 1.5rem;
+  }
+  
+  .testimonies-stats {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .testimonies-view {
+    padding: 1rem;
+  }
+  
+  .testimonies-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .testimonies-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-group {
+    justify-content: space-between;
+  }
+  
+  .search-group {
+    max-width: none;
+  }
+  
+  .testimony-form .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .testimony-card .action-buttons {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .testimonies-header .flex {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+  
+  .stat-card {
+    padding: 1rem;
+  }
+  
+  .stat-card .stat-icon {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  .stat-card .stat-value {
+    font-size: 1.25rem;
+  }
+}
+
+/* Animation for new testimonies */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.testimony-card.new {
+  animation: slideInUp 0.3s ease-out;
+}
+
+/* Loading states */
+.testimonies-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #e5e7eb;
+  border-top: 2px solid #10b981;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 0.75rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Success/Error states */
+.testimony-success {
+  background: #d1fae5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.testimony-error {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

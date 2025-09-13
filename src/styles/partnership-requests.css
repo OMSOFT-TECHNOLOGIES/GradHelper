@@ -1,0 +1,268 @@
+/* Partnership Requests View Styles */
+
+/* Stats Summary */
+.stats-summary {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Partnership Request Item */
+.partnership-request-item {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.partnership-request-item:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.request-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.request-user {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+
+.user-email {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0 0 0.5rem 0;
+}
+
+.user-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.request-status {
+  text-align: right;
+}
+
+.review-info {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0.5rem 0 0 0;
+}
+
+.request-preview {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.motivation-preview,
+.experience-preview {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+
+.motivation-preview:last-child,
+.experience-preview:last-child {
+  margin-bottom: 0;
+}
+
+.request-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+/* Modal Styles */
+.applicant-section,
+.application-section,
+.status-section {
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 1.5rem;
+}
+
+.applicant-section:last-child,
+.application-section:last-child,
+.status-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+}
+
+.applicant-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detail-item label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.detail-item span {
+  font-size: 0.875rem;
+  color: #1e293b;
+}
+
+.detail-block {
+  margin-bottom: 1rem;
+}
+
+.detail-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 0.5rem;
+}
+
+.detail-text {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #1e293b;
+  margin: 0;
+}
+
+.status-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.review-details {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 0.5rem;
+}
+
+.rejection-reason {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .stats-summary {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .stat-item {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .request-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .request-status {
+    text-align: left;
+  }
+
+  .user-meta {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .request-actions {
+    justify-content: stretch;
+  }
+
+  .request-actions .btn {
+    flex: 1;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .applicant-details {
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .partnership-request-item {
+    padding: 1rem;
+  }
+
+  .request-actions {
+    flex-direction: column;
+  }
+}
