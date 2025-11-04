@@ -109,6 +109,54 @@ The application uses a custom design system built on Tailwind CSS v4 with:
 3. Profile completion (optional)
 4. Dashboard access
 
+### Profile Completion & User Profile Check
+
+#### Profile Completion Flow
+After registration, users are prompted to complete their academic profile. This includes providing details such as name, email, academic background, and preferences. Completing the profile helps match students with the most suitable experts and unlocks full platform features (e.g., posting tasks).
+
+#### How Profile Completion is Checked
+The application checks if a user's profile is complete using the `isComplete` property in the user object:
+
+```ts
+// Example user object with all profile fields
+{
+	id: '123',
+	name: 'Student Name',
+	email: 'student@example.com',
+	role: 'student',
+	profile: {
+		isComplete: true,
+		firstName: 'Student',
+		lastName: 'Name',
+		academicLevel: 'Undergraduate',
+		institution: 'University Name',
+		major: 'Computer Science',
+		graduationYear: 2025,
+		phone: '+1234567890',
+		country: 'Country',
+		bio: 'Short bio about academic interests',
+		preferences: {
+			communication: 'email',
+			notifications: true,
+			timezone: 'GMT+1',
+		},
+	
+		// Add any other custom fields as needed
+	}
+}
+```
+
+If `isComplete` is `false`, the user is redirected to the profile completion page before accessing certain features (like posting tasks). Once completed, `isComplete` is set to `true` and the user gains full access.
+
+#### Where Profile Completion is Used
+- **Onboarding:** New users are prompted to complete their profile after sign-up.
+- **Task Posting:** Users must have a complete profile to post new tasks.
+- **Dashboard Access:** Some dashboard features may require a complete profile.
+
+#### Developer Notes
+- The profile completion logic is handled in `ProfileCompletion.tsx` and checked in `App.tsx`.
+- Local storage is used to persist user profile state between sessions.
+
 ### Task Management
 1. Students post tasks with requirements
 2. Admins review and assign tasks

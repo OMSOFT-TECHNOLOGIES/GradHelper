@@ -407,6 +407,7 @@ notes: "Submission notes"
 
 ### POST /partnership-requests
 **Purpose**: Submit partnership request (Student only)
+**Frontend Data Model**:
 ```json
 {
   "requestType": "academic_help|tutoring|consultation",
@@ -415,7 +416,26 @@ notes: "Submission notes"
   "urgency": "low|medium|high",
   "preferredContactMethod": "email|phone|chat",
   "availabilitySchedule": "Monday-Friday 9AM-5PM",
-  "additionalNotes": "Any additional information"
+  "additionalNotes": "Any additional information",
+  "userId": "user_123",
+  "userName": "John Doe",
+  "userEmail": "john@example.com",
+  "userAvatar": "https://...",
+  "school": "University Name",
+  "year": "3",
+  "course": "Computer Science",
+  "motivation": "Why I want this partnership...",
+  "experience": "Relevant experience...",
+  "socialMedia": "@john_doe",
+  "referralCode": "REF123"
+}
+```
+**Backend Response Example**:
+```json
+{
+  "id": 1,
+  "status": "pending",
+  "submittedDate": "2025-09-18T10:00:00Z"
 }
 ```
 
@@ -427,25 +447,68 @@ notes: "Submission notes"
 - `status`: "pending|approved|rejected"
 - `search`: string
 - `urgency`: "low|medium|high"
+**Frontend expects each request object to include:**
+- `id`, `userId`, `userName`, `userEmail`, `userAvatar`, `school`, `year`, `course`, `motivation`, `experience`, `socialMedia`, `status`, `submittedDate`, `reviewedDate`, `reviewedBy`, `rejectionReason`, `referralCode`
 
 ### GET /partnership-requests/{requestId}
 **Purpose**: Get specific partnership request details
+**Response includes all fields listed above.**
 
 ### PUT /partnership-requests/{requestId}/status (Admin only)
 **Purpose**: Update partnership request status
+**Frontend Action**: Admin can approve or reject a request via modal dialogs. If rejected, a reason is required.
 ```json
 {
   "status": "approved|rejected",
   "reason": "Reason for decision",
   "assignedAdmin": "admin_id", // If approved
-  "estimatedResponse": "24 hours" // If approved
+  "estimatedResponse": "24 hours", // If approved
+  "reviewedBy": "Dr. John Smith", // Admin name
+  "reviewedDate": "2025-09-18T11:00:00Z",
+  "rejectionReason": "Insufficient motivation" // If rejected
 }
 ```
+**Backend should update and return the full request object with new status and review info.**
 
 ### DELETE /partnership-requests/{requestId}
 **Purpose**: Cancel partnership request
+**Frontend Action**: User can cancel their own request. Backend should remove or mark the request as cancelled.
+---
+### Frontend & Backend Integration Flow
+1. **Submit Request**: Frontend collects user info and sends POST to `/partnership-requests`.
+2. **List Requests**: Frontend fetches requests via GET, displays with status badges.
+3. **View Details**: Frontend opens modal, fetches details if needed.
+4. **Approve/Reject**: Admin uses modal to approve/reject, triggers PUT with status and reason.
+5. **Sync**: After status change, frontend refreshes list to show updates.
+6. **Cancel**: User can delete their request via DELETE.
+7. **Status Values**: Only `pending`, `approved`, `rejected` are valid.
 
 ---
+### Referral Code & Link Implementation
+
+**Referral Code Generation:**
+- Backend generates a unique referral code for each user (e.g., `REF123XYZ`) during registration or partnership request creation.
+- Code can be random or based on user ID.
+- Store referral code in user profile and/or partnership request.
+
+**Referral Link Creation:**
+- Construct referral link using the code:
+  `https://gradhelper.com/register?ref=REF123XYZ`
+- Frontend displays this link in the user dashboard/profile for sharing.
+
+**Referral Code Usage:**
+- When a new user registers via a referral link, frontend extracts the `ref` query parameter and sends it in the registration API call.
+- Backend associates the new user with the referring user/code for tracking and rewards.
+
+**Partnership Request:**
+- Frontend includes the referral code in the partnership request payload if available.
+- Backend stores and validates the referral code in the request.
+
+**Summary:**
+- Referral codes are generated and stored per user.
+- Referral links are constructed using the code and shared by users.
+- New users or partnership requests can include the code for tracking.
+- Backend validates and associates referrals for analytics or rewards.
 
 ## 💳 Billing & Payment Endpoints
 
@@ -679,7 +742,101 @@ taskId: "task_123" // Optional, for context
 
 ---
 
-## 📊 Analytics & Reports Endpoints (Admin only)
+## � Live Chatting Feature: Student ↔ Admin
+
+### Overview
+Enables real-time messaging between students and admins using REST APIs and WebSocket events.
+
+---
+
+### Backend Implementation
+
+#### REST Endpoints
+
+- **GET /chats**
+  - Lists chat conversations for the user.
+  - Query: `type=task|general|support` (use `support` for student-admin chats).
+
+- **GET /chats/{chatId}/messages**
+  - Fetches messages for a chat (supports pagination).
+
+- **POST /chats/{chatId}/messages**
+  - Sends a message in a chat.
+  - Payload:
+    ```json
+    {
+      "content": "Message content",
+      "type": "text|image|file",
+      "attachments": ["file_id_1"],
+      "replyTo": "message_id" // Optional
+    }
+    ```
+
+- **WebSocket Events**
+  - `chat.message`: Real-time delivery of new messages.
+  - `chat.typing`: Typing indicators.
+
+#### WebSocket Connection
+
+- URL: `wss://api.gradhelper.com/ws?token=jwt_token`
+- On connection, subscribe to relevant chat channels.
+- Emit events for new messages and typing status.
+
+---
+
+### Frontend Implementation
+
+#### Chat UI
+
+- **Conversation List**: Shows all chats (filter by `type: support` for admin chats).
+- **Message Window**: Displays messages, supports text, images, files.
+- **Input Box**: For composing messages, with file/image upload.
+- **Typing Indicator**: Shows when the other party is typing (via WebSocket).
+
+#### Real-Time Updates
+
+- **Connect to WebSocket** on login.
+- **Listen for `chat.message`** to update UI instantly.
+- **Send/Receive `chat.typing`** events for typing status.
+
+#### Message Sending
+
+- On send, POST to `/chats/{chatId}/messages`.
+- Optimistically update UI, then confirm via WebSocket event.
+
+#### Admin Features
+
+- Admins see all support chats and can reply to students.
+- Optionally, admins can initiate new chats with students.
+
+---
+
+### Example Flow
+
+1. **Student starts a support chat** (or uses existing).
+2. **Student sends a message** via POST `/chats/{chatId}/messages`.
+3. **Backend broadcasts message** via WebSocket `chat.message`.
+4. **Admin receives message in real-time**, replies via same endpoint.
+5. **Both parties see typing indicators** via `chat.typing` events.
+
+---
+
+### Security & Moderation
+
+- Only authenticated users can access chat.
+- Backend should validate chat participants (student/admin).
+- Optionally, implement message moderation and logging.
+
+---
+
+### Summary
+
+- REST APIs for chat history and message sending.
+- WebSocket for real-time updates and typing indicators.
+- Frontend displays conversations, messages, and supports instant communication.
+
+---
+## �📊 Analytics & Reports Endpoints (Admin only)
 
 ### GET /analytics/dashboard
 **Purpose**: Get dashboard analytics
@@ -850,3 +1007,103 @@ All endpoints return consistent error responses:
 10. **Documentation**: Use tools like Swagger/OpenAPI for interactive API docs
 
 This API specification provides the complete backend requirements for the TheGradHelper application to function as a production-ready platform.
+
+---
+
+## 💬 Live Chat Feature: Student ↔ Admin
+
+### Overview
+This feature enables real-time messaging between students and admins. Admins can view all students, select one, and chat individually. Students can only chat with admin support.
+
+### 1. Backend (Django)
+
+#### Models
+- **User**: Represents students and admins (with a `role` field).
+- **Chat**: Represents a chat session (fields: `id`, `student`, `admin`, `created_at`).
+- **Message**: Represents a message (fields: `id`, `chat`, `sender`, `content`, `timestamp`, `status`)
+
+#### Endpoints
+- `GET /api/chats/`  
+  List all chats for the current user (admin: all student chats, student: their chat).
+- `GET /api/chats/<chat_id>/messages/`  
+  Fetch messages for a chat.
+- `POST /api/chats/<chat_id>/messages/`  
+  Send a message (fields: `content`).
+- `POST /api/chats/<chat_id>/typing/`  
+  Send typing indicator (optional).
+- WebSocket endpoint (e.g. `/ws/chat/<chat_id>/`)  
+  For real-time message delivery and typing indicators.
+
+#### Django Implementation Steps
+1. **Create Models**:  
+   `User`, `Chat`, `Message` (with appropriate relationships).
+2. **Serializers**:  
+   For `Chat` and `Message` models.
+3. **Views**:  
+   API views for listing chats, fetching/sending messages.
+4. **Routing**:  
+   Add URLs for chat endpoints.
+5. **WebSocket Setup**:  
+   Use Django Channels for real-time updates. Consumers for handling message events and typing indicators.
+6. **Permissions**:  
+   Ensure only admins can view all students; students only see their own chat.
+
+### 2. Frontend (React)
+
+#### Components
+- **ChatView**: Main chat UI, handles sidebar (admin), message list, input, typing indicator.
+- **Student Sidebar**: For admin, lists all students with search/filter.
+- **Message Bubble**: Shows message content, sender, timestamp, status.
+- **Typing Indicator**: Shows when the other party is typing.
+
+#### Data Flow
+- On load, fetch student list (admin) and chat history.
+- When admin selects a student, fetch that chat’s messages.
+- When sending a message, POST to backend and optimistically update UI.
+- Listen for WebSocket events for new messages and typing indicators.
+
+#### React Implementation Steps
+1. **Sidebar**:  
+   Display all students (admin only), allow selection.
+2. **Chat Area**:  
+   Show messages for selected chat. Show avatars, sender names, timestamps, status.
+3. **Message Input**:  
+   Send message via API, update local state. Show typing indicator (send/receive via WebSocket).
+4. **WebSocket Integration**:  
+   Connect to backend for real-time updates. Update UI on new message/typing events.
+5. **State Management**:  
+   Use React state/hooks for messages, selected student, typing, etc.
+
+### 3. Integration Steps
+
+#### Backend
+- Set up Django models, serializers, views, and WebSocket consumers.
+- Test endpoints with tools like Postman.
+- Ensure authentication and permissions.
+
+#### Frontend
+- Implement UI components as described.
+- Connect to backend endpoints for chat data.
+- Integrate WebSocket for real-time updates.
+- Handle error states and loading indicators.
+
+### 4. Example API Usage
+- **Fetch students (admin):**  
+  `GET /api/users/?role=student`
+- **Fetch chats:**  
+  `GET /api/chats/`
+- **Fetch messages:**  
+  `GET /api/chats/<chat_id>/messages/`
+- **Send message:**  
+  `POST /api/chats/<chat_id>/messages/`
+- **WebSocket:**  
+  Connect to `/ws/chat/<chat_id>/` for real-time updates.
+
+### 5. Notes
+- Ensure CORS is configured for frontend-backend communication.
+- Use authentication (JWT/session) for API and WebSocket.
+- Optimize UI for responsiveness and accessibility.
+
+---
+
+**This documentation covers all steps needed to implement the chat feature from frontend to backend in Django.**

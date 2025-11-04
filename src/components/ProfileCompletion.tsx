@@ -1,4 +1,7 @@
 import { useState } from 'react';
+import { Switch } from './ui/switch';
+import { toast } from 'sonner';
+import { API_BASE_URL } from '../utils/api';
 import { 
   User, 
   GraduationCap, 
@@ -19,21 +22,49 @@ interface ProfileCompletionProps {
 }
 
 export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletionProps) {
-  const [formData, setFormData] = useState({
-    dateOfBirth: '',
+  // Get user data from localStorage
+  const savedUser = typeof window !== 'undefined' ? localStorage.getItem('gradhelper_user') : null;
+  const userData = savedUser ? JSON.parse(savedUser) : {};
+
+  type ProfileFormData = {
+    first_name: string;
+    last_name: string;
+    email: string;
+    user: number | string;
+    phone: string;
+    country: string;
+    academic_level: string;
+    institution: string;
+    major: string;
+    graduation_year: string | number;
+    bio: string;
+    preferences: {
+      communication: string;
+      notifications: boolean;
+      timezone: string;
+    };
+    isComplete: boolean;
+    [key: string]: any;
+  };
+
+  const [formData, setFormData] = useState<ProfileFormData>({
+    first_name: userData.first_name || userData.name?.split(' ')[0] || '',
+    last_name: userData.last_name || userData.name?.split(' ').slice(1).join(' ') || '',
+    email: userData.email || '',
+    user: userData.id || '',
     phone: '',
-    address: '',
-    city: '',
     country: '',
-    university: '',
+    academic_level: '',
+    institution: '',
     major: '',
-    academicLevel: '',
-    graduationYear: '',
-    interests: [] as string[],
-    preferredSubjects: [] as string[],
-    timezone: '',
-    emergencyContact: '',
-    emergencyPhone: ''
+    graduation_year: '',
+    bio: '',
+    preferences: {
+      communication: '',
+      notifications: true,
+      timezone: '',
+    },
+    isComplete: false,
   });
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -60,16 +91,66 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
     'Finance', 'Healthcare', 'Education', 'Technology', 'Sports'
   ];
 
+  // Disable automatic form submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onComplete({
-      ...user,
-      profile: {
-        ...formData,
-        completedAt: new Date().toISOString(),
-        isComplete: true
+    return false;
+  };
+
+  // Explicit submit handler for final step
+  const handleCompleteProfile = () => {
+    // Validate required fields
+    const required = [
+      'first_name', 'last_name', 'email', 'user', 'phone', 'country', 'academic_level', 'institution', 'major', 'graduation_year', 'bio'
+    ];
+    for (const field of required) {
+      if (!formData[field]) {
+        toast.error(`Please fill in ${field.replace('_', ' ')}.`);
+        return;
       }
-    });
+    }
+    const payload = {
+      ...formData,
+      isComplete: true
+    };
+    // Get token from localStorage
+    const token = typeof window !== 'undefined' ? localStorage.getItem('gradhelper_token') : null;
+    if (!token) {
+      toast.error('Authorization token missing. Please log in again.');
+      return;
+    }
+    console.log('Submitting profile data:', payload);
+    fetch(`${API_BASE_URL}/auth/profile/`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    })
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (ok) {
+          toast.success('Profile completed successfully!');
+          onComplete(payload);
+        } else {
+          toast.error(data.error?.message || data.message || 'Profile completion failed.');
+        }
+      })
+      .catch(() => {
+        toast.error('Profile completion failed.');
+      });
+  };
+
+  // Keyboard event protection
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && currentStep < totalSteps) {
+      e.preventDefault();
+      nextStep();
+    } else if (e.key === 'Enter' && currentStep === totalSteps) {
+      e.preventDefault();
+      // Only submit if user clicks button
+    }
   };
 
   const nextStep = () => {
@@ -85,21 +166,11 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
   };
 
   const toggleInterest = (interest: string) => {
-    setFormData(prev => ({
-      ...prev,
-      interests: prev.interests.includes(interest)
-        ? prev.interests.filter(i => i !== interest)
-        : [...prev.interests, interest]
-    }));
+    // Removed interests logic
   };
 
   const toggleSubject = (subject: string) => {
-    setFormData(prev => ({
-      ...prev,
-      preferredSubjects: prev.preferredSubjects.includes(subject)
-        ? prev.preferredSubjects.filter(s => s !== subject)
-        : [...prev.preferredSubjects, subject]
-    }));
+    // Removed preferredSubjects logic
   };
 
   const renderStepContent = () => {
@@ -111,21 +182,40 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
               <h3>Personal Information</h3>
               <p>Help us personalize your experience with basic details</p>
             </div>
-            
             <div className="form-grid">
               <div className="form-group">
-                <label className="form-label">Date of Birth</label>
-                <div className="input-with-icon">
-                  <Calendar className="input-icon" />
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => setFormData({...formData, dateOfBirth: e.target.value})}
-                  />
-                </div>
+                <label className="form-label">First Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="First Name"
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                  required
+                />
               </div>
-
+              <div className="form-group">
+                <label className="form-label">Last Name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Last Name"
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="Email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  required
+                />
+              </div>
               <div className="form-group">
                 <label className="form-label">Phone Number</label>
                 <div className="input-with-icon">
@@ -136,45 +226,31 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
                     placeholder="+1 (555) 123-4567"
                     value={formData.phone}
                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    required
                   />
                 </div>
               </div>
-
-              <div className="form-group form-group-full">
-                <label className="form-label">Address</label>
-                <div className="input-with-icon">
-                  <MapPin className="input-icon" />
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="123 Main Street"
-                    value={formData.address}
-                    onChange={(e) => setFormData({...formData, address: e.target.value})}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">City</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="New York"
-                  value={formData.city}
-                  onChange={(e) => setFormData({...formData, city: e.target.value})}
-                />
-              </div>
-
               <div className="form-group">
                 <label className="form-label">Country</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="United States"
+                  placeholder="Country"
                   value={formData.country}
                   onChange={(e) => setFormData({...formData, country: e.target.value})}
                 />
               </div>
+              <div className="form-group form-group-full">
+                <label className="form-label">Short Bio</label>
+                <textarea
+                  className="form-input"
+                  placeholder="Tell us about your academic interests"
+                  value={formData.bio}
+                  onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                  rows={2}
+                />
+              </div>
+              {/* Avatar field removed, not required by backend */}
             </div>
           </div>
         );
@@ -186,7 +262,6 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
               <h3>Academic Background</h3>
               <p>Tell us about your educational journey</p>
             </div>
-            
             <div className="form-grid">
               <div className="form-group form-group-full">
                 <label className="form-label">University/Institution</label>
@@ -196,12 +271,11 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
                     type="text"
                     className="form-input"
                     placeholder="Harvard University"
-                    value={formData.university}
-                    onChange={(e) => setFormData({...formData, university: e.target.value})}
+                    value={formData.institution}
+                    onChange={(e) => setFormData({...formData, institution: e.target.value})}
                   />
                 </div>
               </div>
-
               <div className="form-group">
                 <label className="form-label">Major/Field of Study</label>
                 <input
@@ -212,13 +286,12 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
                   onChange={(e) => setFormData({...formData, major: e.target.value})}
                 />
               </div>
-
               <div className="form-group">
                 <label className="form-label">Academic Level</label>
                 <select
                   className="form-input"
-                  value={formData.academicLevel}
-                  onChange={(e) => setFormData({...formData, academicLevel: e.target.value})}
+                  value={formData.academic_level}
+                  onChange={(e) => setFormData({...formData, academic_level: e.target.value})}
                 >
                   <option value="">Select level</option>
                   {academicLevels.map((level) => (
@@ -226,7 +299,6 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
                   ))}
                 </select>
               </div>
-
               <div className="form-group">
                 <label className="form-label">Expected Graduation Year</label>
                 <input
@@ -235,30 +307,8 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
                   placeholder="2025"
                   min="2024"
                   max="2030"
-                  value={formData.graduationYear}
-                  onChange={(e) => setFormData({...formData, graduationYear: e.target.value})}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Emergency Contact Name</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Parent/Guardian"
-                  value={formData.emergencyContact}
-                  onChange={(e) => setFormData({...formData, emergencyContact: e.target.value})}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Emergency Contact Phone</label>
-                <input
-                  type="tel"
-                  className="form-input"
-                  placeholder="+1 (555) 987-6543"
-                  value={formData.emergencyPhone}
-                  onChange={(e) => setFormData({...formData, emergencyPhone: e.target.value})}
+                  value={formData.graduation_year}
+                  onChange={(e) => setFormData({...formData, graduation_year: e.target.value})}
                 />
               </div>
             </div>
@@ -269,48 +319,59 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
         return (
           <div className="profile-step">
             <div className="step-header">
-              <h3>Preferences & Interests</h3>
-              <p>Help us match you with the right experts</p>
+              <h3>Preferences</h3>
+              <p>Set your communication and notification preferences</p>
             </div>
-            
             <div className="preferences-section">
               <div className="preference-group">
-                <h4>Preferred Subjects</h4>
-                <p className="preference-desc">Select subjects you need help with most</p>
-                <div className="preference-grid">
-                  {subjects.map((subject) => (
-                    <button
-                      key={subject}
-                      type="button"
-                      className={`preference-tag ${formData.preferredSubjects.includes(subject) ? 'selected' : ''}`}
-                      onClick={() => toggleSubject(subject)}
-                    >
-                      {subject}
-                      {formData.preferredSubjects.includes(subject) && (
-                        <CheckCircle className="tag-check" />
-                      )}
-                    </button>
-                  ))}
+                <div className="form-group">
+                  <label className="form-label">Preferred Communication</label>
+                  <select
+                    className="form-input"
+                    value={formData.preferences.communication}
+                    onChange={e => setFormData({
+                      ...formData,
+                      preferences: {
+                        ...formData.preferences,
+                        communication: e.target.value
+                      }
+                    })}
+                  >
+                    <option value="">Select</option>
+                    <option value="email">Email</option>
+                    <option value="sms">SMS</option>
+                    <option value="app">App Notification</option>
+                  </select>
                 </div>
-              </div>
-
-              <div className="preference-group">
-                <h4>Areas of Interest</h4>
-                <p className="preference-desc">What type of academic help interests you?</p>
-                <div className="preference-grid">
-                  {interests.map((interest) => (
-                    <button
-                      key={interest}
-                      type="button"
-                      className={`preference-tag ${formData.interests.includes(interest) ? 'selected' : ''}`}
-                      onClick={() => toggleInterest(interest)}
-                    >
-                      {interest}
-                      {formData.interests.includes(interest) && (
-                        <CheckCircle className="tag-check" />
-                      )}
-                    </button>
-                  ))}
+                <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  <label className="form-label" style={{ marginBottom: 0 }}>Enable Notifications</label>
+                        <Switch
+                          checked={formData.preferences.notifications}
+                          onCheckedChange={checked => setFormData({
+                            ...formData,
+                            preferences: {
+                              ...formData.preferences,
+                              notifications: checked
+                            }
+                          })}
+                          className="custom-switch"
+                        />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Timezone</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. GMT+1"
+                    value={formData.preferences.timezone}
+                    onChange={e => setFormData({
+                      ...formData,
+                      preferences: {
+                        ...formData.preferences,
+                        timezone: e.target.value
+                      }
+                    })}
+                  />
                 </div>
               </div>
             </div>
@@ -347,7 +408,7 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="profile-form">
+        <form onSubmit={handleSubmit} onKeyDown={handleKeyDown} className="profile-form">
           {renderStepContent()}
 
           <div className="form-actions">
@@ -357,13 +418,12 @@ export function ProfileCompletion({ user, onComplete, onSkip }: ProfileCompletio
                   Previous
                 </button>
               )}
-              
               {currentStep < totalSteps ? (
                 <button type="button" className="btn btn-primary" onClick={nextStep}>
                   Next Step
                 </button>
               ) : (
-                <button type="submit" className="btn btn-primary">
+                <button type="button" className="btn btn-primary" onClick={handleCompleteProfile}>
                   Complete Profile
                 </button>
               )}
