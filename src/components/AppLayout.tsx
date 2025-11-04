@@ -62,7 +62,7 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'partnerships', label: 'Partnerships', icon: UserPlus },
     { id: 'billing', label: 'Billing', icon: CreditCard },
-    { id: 'messages', label: 'Messages', icon: MessageCircle },
+    //{ id: 'messages', label: 'Messages', icon: MessageCircle },
     { id: 'chat', label: 'Chat with Admin', icon: Send },
   ];
 
@@ -73,7 +73,8 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'students', label: 'Students', icon: Users },
-    { id: 'messages', label: 'Messages', icon: MessageCircle },
+    //{ id: 'messages', label: 'Messages', icon: MessageCircle },
+    { id: 'chat', label: 'Chat with Students', icon: Send },
     { id: 'testimonies', label: 'Testimonies', icon: Star },
     { id: 'help', label: 'Help Requests', icon: HelpCircle },
   ];

@@ -1,0 +1,135 @@
+/* ChatView Professional Styling */
+.chat-view-container {
+  min-height: 80vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(60, 72, 88, 0.12);
+  overflow: hidden;
+}
+
+.chat-sidebar {
+  background: #f3f6fb;
+  border-right: 1px solid #e5e7eb;
+  min-width: 260px;
+  padding: 2rem 1rem 1rem 1rem;
+  box-shadow: 2px 0 8px rgba(60, 72, 88, 0.04);
+}
+
+.chat-sidebar h3 {
+  font-size: 1.1rem;
+  color: #374151;
+  margin-bottom: 1.5rem;
+}
+
+.chat-sidebar button {
+  transition: background 0.2s, color 0.2s;
+  font-size: 1rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.chat-sidebar button.bg-blue-200 {
+  background: linear-gradient(90deg, #6366f1 0%, #60a5fa 100%);
+  color: #fff;
+}
+
+.chat-card {
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 4px 24px rgba(60, 72, 88, 0.10);
+  margin: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  height: calc(80vh - 3rem);
+}
+
+.card-header {
+  background: #f3f6fb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 1.25rem 2rem;
+  display: flex;
+  align-items: center;
+}
+
+.card-header .avatar {
+  box-shadow: 0 2px 8px rgba(60, 72, 88, 0.08);
+}
+
+.card-header .font-semibold {
+  font-size: 1.1rem;
+  color: #374151;
+}
+
+.card-header .text-green-600 {
+  font-weight: 500;
+}
+
+.card-content {
+  padding: 2rem;
+  overflow-y: auto;
+  background: #f8fafc;
+}
+
+.chat-message {
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 1.2rem;
+}
+
+.chat-message .max-w-xs {
+  max-width: 60%;
+  border-radius: 1rem;
+  padding: 1rem;
+  font-size: 1rem;
+  box-shadow: 0 2px 8px rgba(60, 72, 88, 0.06);
+}
+
+.chat-message.justify-end .max-w-xs {
+  background: linear-gradient(90deg, #6366f1 0%, #60a5fa 100%);
+  color: #fff;
+}
+
+.chat-message.justify-start .max-w-xs {
+  background: #e0e7ff;
+  color: #374151;
+}
+
+form {
+  background: #f3f6fb;
+  border-top: 1px solid #e5e7eb;
+  padding: 1rem 2rem;
+  display: flex;
+  gap: 1rem;
+}
+
+form input {
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  background: #fff;
+  transition: border 0.2s;
+}
+
+form input:focus {
+  border-color: #6366f1;
+  outline: none;
+}
+
+form button[type="submit"] {
+  background: linear-gradient(90deg, #6366f1 0%, #60a5fa 100%);
+  color: #fff;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  font-size: 1rem;
+  border: none;
+  box-shadow: 0 2px 8px rgba(60, 72, 88, 0.08);
+  transition: background 0.2s;
+}
+
+form button[type="submit"]:hover {
+  background: linear-gradient(90deg, #4f46e5 0%, #2563eb 100%);
+}
