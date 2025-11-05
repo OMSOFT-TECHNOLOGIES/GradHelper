@@ -39,6 +39,8 @@ import './src/styles/accomplishments.css';
 import './src/styles/testimonies.css';
 import './src/styles/messages.css';
 
+
+
 type AppState = 'landing' | 'auth' | 'profile' | 'app';
 type UserRole = 'student' | 'admin';
 
