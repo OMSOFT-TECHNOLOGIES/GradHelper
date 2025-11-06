@@ -29,6 +29,10 @@ import {
   Database,
   Briefcase,
   PenTool,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Instagram,
   FileText,
   Cpu,
   Binary,
@@ -364,23 +368,50 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
   const recentAccomplishments = accomplishments.slice(0, 6);
 
   return (
-    <div className="landing-page">
-      {/* Header */}
-      <header className="landing-header">
-        <div className="container">
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center gap-3">
-              <img src={logoImage} alt="TheGradHelper" className="h-12 w-auto" />
+    <div className="min-h-screen bg-white">
+      {/* Professional Header */}
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <img src={logoImage} alt="TheGradHelper" className="w-6 h-6 filter brightness-0 invert" />
+              </div>
+              <div className="hidden sm:block">
+                <h1 className="text-xl font-bold text-gray-900">GradHelper</h1>
+                <p className="text-xs text-gray-500 -mt-1">Academic Excellence</p>
+              </div>
             </div>
-            <nav className="hidden md:flex items-center gap-6">
-              <a href="#services" className="nav-link">Services</a>
-              <a href="#how-it-works" className="nav-link">How It Works</a>
-              <a href="#testimonials" className="nav-link">Reviews</a>
-              <a href="#support" className="nav-link">Support</a>
+
+            {/* Navigation */}
+            <nav className="hidden lg:flex items-center space-x-8">
+              <a href="#services" className="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200">
+                Services
+              </a>
+              <a href="#how-it-works" className="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200">
+                How It Works
+              </a>
+              <a href="#testimonials" className="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200">
+                Reviews
+              </a>
+              <a href="#support" className="text-gray-700 hover:text-blue-600 font-medium transition-colors duration-200">
+                Support
+              </a>
             </nav>
-            <div className="flex items-center gap-3">
-              <button className="btn btn-ghost btn-sm" onClick={onSignIn}>Sign In</button>
-              <button className="btn btn-primary" onClick={onGetStarted}>
+
+            {/* CTA Buttons */}
+            <div className="flex items-center space-x-4">
+              <button 
+                className="hidden sm:block text-gray-700 hover:text-gray-900 font-medium transition-colors duration-200" 
+                onClick={onSignIn}
+              >
+                Sign In
+              </button>
+              <button 
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-2.5 rounded-lg font-semibold transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105"
+                onClick={onGetStarted}
+              >
                 Get Started
               </button>
             </div>
@@ -388,51 +419,113 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
         </div>
       </header>
 
-      {/* Hero Section with Slider */}
-      <section className="hero-section">
-        <div className="hero-slider">
+      {/* Professional Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        
+        {/* Hero Slider */}
+        <div className="relative">
           {heroSlides.map((slide, index) => (
             <div 
               key={index} 
-              className={`hero-slide ${index === currentSlide ? 'active' : ''}`}
+              className={`${index === currentSlide ? 'block' : 'hidden'} transition-all duration-1000 ease-in-out`}
             >
-              <div className="container">
-                <div className="hero-content">
-                  <div className="hero-text">
-                    <h1 className="hero-title">
+              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+                <div className="grid lg:grid-cols-2 gap-12 items-center">
+                  {/* Hero Content */}
+                  <div className="space-y-8">
+                    {/* Trust Badge */}
+                    <div className="inline-flex items-center px-4 py-2 bg-white/80 backdrop-blur-sm border border-blue-200 rounded-full text-sm font-medium text-blue-800 shadow-sm">
+                      <Award className="w-4 h-4 mr-2" />
+                      Trusted by 50,000+ Students Worldwide
+                    </div>
+
+                    {/* Main Heading */}
+                    <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
                       {slide.title.split(slide.highlight)[0]}
-                      <span className="gradient-text">{slide.highlight}</span>
+                      <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                        {slide.highlight}
+                      </span>
                       {slide.title.split(slide.highlight)[1]}
                     </h1>
-                    <p className="hero-description">
+
+                    {/* Description */}
+                    <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
                       {slide.description}
                     </p>
-                    <div className="hero-actions">
-                      <button className="btn-hero-primary" onClick={onPostTask}>
-                        <BookOpen className="w-5 h-5 mr-2" />
+
+                    {/* CTA Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-4">
+                      <button 
+                        className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center justify-center"
+                        onClick={onPostTask}
+                      >
+                        <BookOpen className="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform duration-200" />
                         Post Your Task
+                        <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform duration-200" />
                       </button>
-                      <button className="btn-hero-outline">
-                        <PlayCircle className="w-5 h-5 mr-2" />
+                      <button className="group bg-white hover:bg-gray-50 text-gray-700 px-8 py-4 rounded-xl font-semibold text-lg border-2 border-gray-200 hover:border-blue-300 transition-all duration-200 flex items-center justify-center">
+                        <PlayCircle className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform duration-200" />
                         Watch Demo
                       </button>
                     </div>
-                    <div className="hero-stats">
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pt-8">
                       {slide.stats.map((stat, statIndex) => (
-                        <div key={statIndex} className="stat-item">
-                          <div className="stat-number">{stat.number}</div>
-                          <div className="stat-label">{stat.label}</div>
+                        <div key={statIndex} className="text-center lg:text-left">
+                          <div className="text-2xl lg:text-3xl font-bold text-gray-900 mb-1">
+                            {stat.number}
+                          </div>
+                          <div className="text-sm text-gray-600 font-medium">
+                            {stat.label}
+                          </div>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="hero-image">
-                    <div className="hero-placeholder">
-                      <img 
-                        src={slide.image} 
-                        alt="Students studying" 
-                        className="w-full h-full object-cover rounded-lg"
-                      />
+
+                  {/* Hero Image */}
+                  <div className="relative lg:pl-8">
+                    <div className="relative">
+                      {/* Background Elements */}
+                      <div className="absolute -top-6 -left-6 w-24 h-24 bg-blue-100 rounded-2xl opacity-60"></div>
+                      <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-indigo-100 rounded-2xl opacity-60"></div>
+                      
+                      {/* Main Image */}
+                      <div className="relative bg-white p-4 rounded-2xl shadow-2xl">
+                        <img 
+                          src={slide.image} 
+                          alt="Students achieving academic success" 
+                          className="w-full h-80 lg:h-96 object-cover rounded-xl"
+                        />
+                        
+                        {/* Floating Success Card */}
+                        <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-lg border border-gray-100">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                              <CheckCircle className="w-6 h-6 text-green-600" />
+                            </div>
+                            <div>
+                              <div className="font-semibold text-gray-900">Success Rate</div>
+                              <div className="text-2xl font-bold text-green-600">98%</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Floating Rating Card */}
+                        <div className="absolute -top-6 -right-6 bg-white p-4 rounded-xl shadow-lg border border-gray-100">
+                          <div className="flex items-center space-x-2">
+                            <div className="flex">
+                              {[...Array(5)].map((_, i) => (
+                                <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
+                              ))}
+                            </div>
+                            <span className="font-semibold text-gray-900">4.9/5</span>
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">2,500+ Reviews</div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -442,61 +535,123 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
         </div>
 
         {/* Hero Navigation */}
-        <button className="hero-nav-arrow prev" onClick={prevSlide}>
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        <button className="hero-nav-arrow next" onClick={nextSlide}>
-          <ChevronRight className="w-6 h-6" />
-        </button>
-
-        <div className="hero-nav">
-          {heroSlides.map((_, index) => (
-            <button
-              key={index}
-              className={`hero-nav-dot ${index === currentSlide ? 'active' : ''}`}
-              onClick={() => setCurrentSlide(index)}
-            />
-          ))}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+          <div className="flex items-center space-x-2">
+            <button 
+              className="p-2 bg-white/80 backdrop-blur-sm hover:bg-white border border-gray-200 rounded-full transition-all duration-200 hover:shadow-md"
+              onClick={prevSlide}
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            
+            <div className="flex space-x-2 mx-4">
+              {heroSlides.map((_, index) => (
+                <button
+                  key={index}
+                  className={`w-3 h-3 rounded-full transition-all duration-200 ${
+                    index === currentSlide 
+                      ? 'bg-blue-600 w-8' 
+                      : 'bg-gray-300 hover:bg-gray-400'
+                  }`}
+                  onClick={() => setCurrentSlide(index)}
+                />
+              ))}
+            </div>
+            
+            <button 
+              className="p-2 bg-white/80 backdrop-blur-sm hover:bg-white border border-gray-200 rounded-full transition-all duration-200 hover:shadow-md"
+              onClick={nextSlide}
+            >
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
         </div>
       </section>
 
-      {/* New Services Section - Based on First Screenshot */}
-      <section id="services" className="new-services-section">
-        <div className="container">
-          <div className="services-cards-grid">
+      {/* Professional Services Section */}
+      <section id="services" className="py-20 lg:py-32 bg-gradient-to-br from-gray-50 to-blue-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Service Categories Cards */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-16">
             {serviceCards.map((card, index) => (
-              <div key={index} className={`service-card-new ${card.className}`}>
-                <h3 className="service-card-title">{card.title}</h3>
-                <p className="service-card-description">{card.description}</p>
+              <div 
+                key={index} 
+                className="group bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 hover:shadow-xl hover:bg-white transition-all duration-300 hover:-translate-y-2"
+              >
+                <h3 className="text-lg font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors duration-300">
+                  {card.title}
+                </h3>
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  {card.description}
+                </p>
               </div>
             ))}
           </div>
           
-          <div className="services-subtitle">
-            <p>
-              Specialized Support For Computer Science, AI, Data Science, Cybersecurity<br />
-              And All I.T Related Students At All Levels Across The Globe.
-            </p>
-            <button className="btn btn-primary btn-lg" onClick={onGetStarted}>
-              Get Started
-            </button>
+          {/* Main CTA Section */}
+          <div className="text-center mb-20">
+            <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-3xl p-8 lg:p-12 shadow-lg">
+              <h2 className="text-2xl lg:text-4xl font-bold text-gray-900 mb-6">
+                Specialized Support For 
+                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"> Computer Science, AI, Data Science</span>, 
+                Cybersecurity And All I.T Related Students
+              </h2>
+              <p className="text-lg text-gray-600 mb-8 max-w-3xl mx-auto">
+                Expert assistance at all academic levels across the globe with personalized support tailored to your needs
+              </p>
+              <button 
+                className="group bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-10 py-4 rounded-xl font-bold text-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                onClick={onGetStarted}
+              >
+                Get Started Today
+                <ArrowRight className="w-5 h-5 ml-2 inline-block group-hover:translate-x-1 transition-transform duration-200" />
+              </button>
+            </div>
           </div>
 
           {/* Detailed Services Grid */}
-          <div className="detailed-services-grid">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {detailedServices.map((service, index) => (
-              <div key={index} className="detailed-service-card">
-                <div className="service-image">
-                  <img src={service.image} alt={service.title} />
-                  <div className="service-icon-overlay">
-                    <service.icon className="w-8 h-8 text-white" />
-                  </div>
+              <div 
+                key={index} 
+                className="group bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2"
+              >
+                {/* Service Image */}
+                <div className="h-48 overflow-hidden rounded-t-2xl">
+                  <img 
+                    src={service.image} 
+                    alt={service.title} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
                 </div>
-                <div className="service-content">
-                  <h4 className="service-title">{service.title}</h4>
-                  <p className="service-description">{service.description}</p>
+
+                {/* Service Content */}
+                <div className="p-6">
+                  <h4 className="text-xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors duration-300">
+                    {service.title}
+                  </h4>
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    {service.description}
+                  </p>
+                  
+                  {/* Features List */}
+                  <div className="space-y-2 mb-6">
+                    <div className="flex items-center text-sm text-gray-700">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                      24/7 Expert Support
+                    </div>
+                    <div className="flex items-center text-sm text-gray-700">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                      Plagiarism-Free Work
+                    </div>
+                    <div className="flex items-center text-sm text-gray-700">
+                      <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                      On-Time Delivery
+                    </div>
+                  </div>
+
                   <button 
-                    className="service-link-btn"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 px-6 rounded-xl font-semibold transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg"
                     onClick={onPostTask}
                   >
                     {service.link}
@@ -508,43 +663,110 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
         </div>
       </section>
 
-      {/* How It Works Section - Keep existing */}
-      <section id="how-it-works" className="how-it-works-section">
-        <div className="container">
-          <div className="section-header">
-            <h2 className="section-title">How It Works</h2>
-            <p className="section-description">
-              Simple steps to get the academic help you need
+      {/* Professional How It Works Section */}
+      <section id="how-it-works" className="py-20 lg:py-32 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center px-4 py-2 bg-green-50 border border-green-200 rounded-full text-sm font-medium text-green-800 mb-6">
+              <Clock className="w-4 h-4 mr-2" />
+              Simple 4-Step Process
+            </div>
+            <h2 className="text-3xl lg:text-5xl font-bold text-gray-900 mb-6">
+              How It
+              <span className="bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent"> Works</span>
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Get expert academic help in just four simple steps. Our streamlined process ensures you receive quality assistance quickly and efficiently.
             </p>
           </div>
-          <div className="steps-grid">
-            <div className="step-item">
-              <div className="step-number">1</div>
-              <h3 className="step-title">Post Your Task</h3>
-              <p className="step-description">
-                Share your assignment details, deadline, and requirements with our platform.
-              </p>
+
+          {/* Steps Flow */}
+          <div className="relative">
+            {/* Connection Line */}
+            <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-px bg-gradient-to-r from-blue-200 via-green-200 to-purple-200 transform -translate-y-1/2"></div>
+            
+            {/* Steps Grid */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
+              <div className="group text-center">
+                <div className="relative mb-8">
+                  <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                    <div className="text-2xl font-bold text-white">1</div>
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-blue-100 rounded-full opacity-70 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-blue-600 transition-colors duration-300">
+                  Post Your Task
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Share your assignment details, deadline, and requirements with our secure platform in minutes.
+                </p>
+              </div>
+
+              <div className="group text-center">
+                <div className="relative mb-8">
+                  <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                    <div className="text-2xl font-bold text-white">2</div>
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-green-100 rounded-full opacity-70 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-green-600 transition-colors duration-300">
+                  Get Matched
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Our AI matches you with the perfect expert based on your subject, academic level, and specific needs.
+                </p>
+              </div>
+
+              <div className="group text-center">
+                <div className="relative mb-8">
+                  <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                    <div className="text-2xl font-bold text-white">3</div>
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-100 rounded-full opacity-70 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-purple-600 transition-colors duration-300">
+                  Collaborate
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Work directly with your expert through our messaging system and track progress in real-time.
+                </p>
+              </div>
+
+              <div className="group text-center">
+                <div className="relative mb-8">
+                  <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                    <div className="text-2xl font-bold text-white">4</div>
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-100 rounded-full opacity-70 group-hover:opacity-100 transition-opacity duration-300"></div>
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-4 group-hover:text-orange-600 transition-colors duration-300">
+                  Succeed
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Receive high-quality, plagiarism-free work on time and boost your academic performance.
+                </p>
+              </div>
             </div>
-            <div className="step-item">
-              <div className="step-number">2</div>
-              <h3 className="step-title">Get Matched</h3>
-              <p className="step-description">
-                We connect you with the perfect expert for your subject and academic level.
-              </p>
+          </div>
+
+          {/* Bottom Stats */}
+          <div className="mt-20 grid grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-gray-900 mb-2">24hrs</div>
+              <div className="text-gray-600">Average Response Time</div>
             </div>
-            <div className="step-item">
-              <div className="step-number">3</div>
-              <h3 className="step-title">Collaborate</h3>
-              <p className="step-description">
-                Work directly with your expert, track progress, and receive regular updates.
-              </p>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-gray-900 mb-2">98%</div>
+              <div className="text-gray-600">Success Rate</div>
             </div>
-            <div className="step-item">
-              <div className="step-number">4</div>
-              <h3 className="step-title">Succeed</h3>
-              <p className="step-description">
-                Receive high-quality work on time and boost your academic performance.
-              </p>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-gray-900 mb-2">24/7</div>
+              <div className="text-gray-600">Support Available</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-gray-900 mb-2">50K+</div>
+              <div className="text-gray-600">Happy Students</div>
             </div>
           </div>
         </div>
@@ -573,73 +795,121 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
         </div>
       </section>
 
-      {/* Testimonials Section with Professional Layout */}
-      <section id="testimonials" className="testimonials-section">
-        <div className="container">
-          <div className="section-header">
-            <h2 className="section-title">What Students Say</h2>
-            <p className="section-description">
-              Join over 50,000 satisfied students who've achieved their academic goals with our expert guidance
+      {/* Professional Testimonials Section */}
+      <section id="testimonials" className="py-20 lg:py-32 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header */}
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-full text-sm font-medium text-yellow-800 mb-6">
+              <Star className="w-4 h-4 mr-2" />
+              Student Success Stories
+            </div>
+            <h2 className="text-3xl lg:text-5xl font-bold text-gray-900 mb-6">
+              What Students
+              <span className="bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent"> Say About Us</span>
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-12">
+              Join over 50,000 satisfied students who've achieved their academic goals with our expert guidance and personalized support
             </p>
-            <div className="testimonials-stats">
-              <div className="testimonial-stat">
-                <div className="stat-number">50,000+</div>
-                <div className="stat-label">Happy Students</div>
+            
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-lg">
+                <div className="text-3xl font-bold text-gray-900 mb-2">50,000+</div>
+                <div className="text-gray-600 font-medium">Happy Students</div>
               </div>
-              <div className="testimonial-stat">
-                <div className="stat-number">4.9/5</div>
-                <div className="stat-label">Average Rating</div>
+              <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-lg">
+                <div className="flex items-center justify-center mb-2">
+                  <span className="text-3xl font-bold text-gray-900">4.9</span>
+                  <div className="flex ml-2">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                    ))}
+                  </div>
+                </div>
+                <div className="text-gray-600 font-medium">Average Rating</div>
               </div>
-              <div className="testimonial-stat">
-                <div className="stat-number">98%</div>
-                <div className="stat-label">Success Rate</div>
+              <div className="bg-white/80 backdrop-blur-sm border border-gray-200 rounded-2xl p-6 shadow-lg">
+                <div className="text-3xl font-bold text-gray-900 mb-2">98%</div>
+                <div className="text-gray-600 font-medium">Success Rate</div>
               </div>
             </div>
           </div>
           
-          <div className="testimonials-grid">
+          {/* Testimonials Grid */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
             {getVisibleTestimonials().map((testimonial, index) => (
-              <div key={`${currentTestimonial}-${index}`} className="testimonial-card-professional">
-                <div className="testimonial-header">
-                  <div className="testimonial-rating">
+              <div 
+                key={`${currentTestimonial}-${index}`} 
+                className="group bg-white/90 backdrop-blur-sm border border-gray-200 rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2"
+              >
+                {/* Quote Icon */}
+                <div className="w-12 h-12 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl flex items-center justify-center mb-6">
+                  <svg className="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-10zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"/>
+                  </svg>
+                </div>
+
+                {/* Rating and University */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex">
                     {[...Array(testimonial.rating)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-current text-yellow-500" />
+                      <Star key={i} className="w-4 h-4 text-yellow-400 fill-current" />
                     ))}
                   </div>
-                  <div className="testimonial-university">{testimonial.university}</div>
+                  <div className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                    {testimonial.university}
+                  </div>
                 </div>
                 
-                <blockquote className="testimonial-quote">
+                {/* Testimonial Text */}
+                <blockquote className="text-gray-700 leading-relaxed mb-8 italic">
                   "{testimonial.text}"
                 </blockquote>
                 
-                <div className="testimonial-author-professional">
-                  <div className="author-avatar-professional">
-                    <img src={testimonial.avatar} alt={testimonial.name} />
+                {/* Author Info */}
+                <div className="flex items-center">
+                  <div className="w-12 h-12 rounded-full overflow-hidden mr-4 ring-2 ring-gray-200">
+                    <img 
+                      src={testimonial.avatar} 
+                      alt={testimonial.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                  <div className="author-info">
-                    <div className="author-name-professional">{testimonial.name}</div>
-                    <div className="author-role-professional">{testimonial.role}</div>
+                  <div>
+                    <div className="font-semibold text-gray-900">{testimonial.name}</div>
+                    <div className="text-sm text-gray-600">{testimonial.role}</div>
                   </div>
+                </div>
+
+                {/* Verified Badge */}
+                <div className="mt-4 flex items-center text-green-600 text-sm">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  <span>Verified Student</span>
                 </div>
               </div>
             ))}
           </div>
           
-          <div className="testimonials-navigation">
+          {/* Navigation */}
+          <div className="flex items-center justify-center space-x-4">
             <button 
-              className="testimonial-nav-btn" 
+              className="p-3 bg-white/80 backdrop-blur-sm hover:bg-white border border-gray-200 rounded-xl transition-all duration-200 hover:shadow-md group"
               onClick={prevTestimonial}
               aria-label="Previous testimonial"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors duration-200" />
             </button>
             
-            <div className="testimonials-dots">
+            <div className="flex space-x-2">
               {(dynamicTestimonials.length > 0 ? dynamicTestimonials : testimonials).map((_, index) => (
                 <button
                   key={index}
-                  className={`testimonial-dot ${index === currentTestimonial ? 'active' : ''}`}
+                  className={`w-3 h-3 rounded-full transition-all duration-200 ${
+                    index === currentTestimonial 
+                      ? 'bg-blue-600 w-8' 
+                      : 'bg-gray-300 hover:bg-gray-400'
+                  }`}
                   onClick={() => setCurrentTestimonial(index)}
                   aria-label={`Go to testimonial ${index + 1}`}
                 />
@@ -647,11 +917,11 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
             </div>
             
             <button 
-              className="testimonial-nav-btn" 
+              className="p-3 bg-white/80 backdrop-blur-sm hover:bg-white border border-gray-200 rounded-xl transition-all duration-200 hover:shadow-md group"
               onClick={nextTestimonial}
               aria-label="Next testimonial"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-5 h-5 text-gray-600 group-hover:text-blue-600 transition-colors duration-200" />
             </button>
           </div>
         </div>
@@ -946,76 +1216,149 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="landing-footer">
-        <div className="container">
-          <div className="footer-content">
-            <div className="footer-brand">
-              <div className="flex items-center gap-3 mb-4">
-                <img src={logoImage} alt="TheGradHelper" className="h-10 w-auto filter brightness-0 invert" />
+      {/* Professional Footer */}
+      <footer className="bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Main Footer Content */}
+          <div className="py-16">
+            <div className="grid lg:grid-cols-4 gap-12">
+              {/* Brand Section */}
+              <div className="lg:col-span-2">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-2xl flex items-center justify-center">
+                    <img src={logoImage} alt="TheGradHelper" className="h-8 w-auto filter brightness-0 invert" />
+                  </div>
+                  <div className="text-2xl font-bold">TheGradHelper</div>
+                </div>
+                
+                <p className="text-gray-300 leading-relaxed mb-8 max-w-md">
+                  Empowering students worldwide to achieve academic excellence through expert guidance, personalized support, and innovative learning solutions.
+                </p>
+                
+                {/* Contact Information */}
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-400">Email us</div>
+                      <div className="text-white font-medium">iconmaxwells@gmail.com</div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
+                      <Phone className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm text-gray-400">Call us</div>
+                      <div className="text-white font-medium">+44 7985 733795</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Social Media */}
+                <div className="flex space-x-4">
+                  <a href="#" className="w-10 h-10 bg-white/10 hover:bg-blue-600 rounded-xl flex items-center justify-center transition-colors duration-200">
+                    <Facebook className="w-5 h-5" />
+                  </a>
+                  <a href="#" className="w-10 h-10 bg-white/10 hover:bg-blue-400 rounded-xl flex items-center justify-center transition-colors duration-200">
+                    <Twitter className="w-5 h-5" />
+                  </a>
+                  <a href="#" className="w-10 h-10 bg-white/10 hover:bg-blue-700 rounded-xl flex items-center justify-center transition-colors duration-200">
+                    <Linkedin className="w-5 h-5" />
+                  </a>
+                  <a href="#" className="w-10 h-10 bg-white/10 hover:bg-pink-600 rounded-xl flex items-center justify-center transition-colors duration-200">
+                    <Instagram className="w-5 h-5" />
+                  </a>
+                </div>
               </div>
-              <p className="text-muted-foreground">
-                Empowering students to achieve academic excellence through expert guidance and support.
-              </p>
               
-              {/* Contact Information */}
-              <div className="footer-contact">
-                <div className="contact-info">
-                  <div className="contact-item">
-                    <Mail className="contact-icon" />
-                    <span>iconmaxwells@gmail.com</span>
-                  </div>
-                  <div className="contact-item">
-                    <Phone className="contact-icon" />
-                    <span>+44 7985 733795</span>
-                  </div>
-                </div>
-                <div className="powered-by">
-                  Powered by OMSOFT TECHNOLOGIES
-                </div>
-              </div>
-            </div>
-            
-            <div className="footer-links">
-              <div className="link-group">
-                <h4 className="link-group-title">Services</h4>
-                <ul className="link-list">
-                  <li><a href="#" className="footer-link">Final Year Projects</a></li>
-                  <li><a href="#" className="footer-link">Assignment Help</a></li>
-                  <li><a href="#" className="footer-link">Research Support</a></li>
-                  <li><a href="#" className="footer-link">CS/IT Projects</a></li>
-                  <li><a href="#" className="footer-link">Data Science</a></li>
-                  <li><a href="#" className="footer-link">AI & Machine Learning</a></li>
+              {/* Services Links */}
+              <div>
+                <h4 className="text-lg font-semibold mb-6 text-white">Academic Services</h4>
+                <ul className="space-y-3">
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Final Year Projects
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Assignment Help
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Research Support
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    CS/IT Projects
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Data Science
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    AI & Machine Learning
+                  </a></li>
                 </ul>
               </div>
-              <div className="link-group">
-                <h4 className="link-group-title">Company</h4>
-                <ul className="link-list">
-                  <li><a href="#" className="footer-link">About TheGradHelper</a></li>
-                  <li><a href="#" className="footer-link">Our Experts</a></li>
-                  <li><a href="#" className="footer-link">Success Stories</a></li>
-                  <li><a href="#" className="footer-link">Careers</a></li>
-                  <li><a href="#" className="footer-link">Blog</a></li>
-                  <li><a href="#" className="footer-link">Partnership</a></li>
-                </ul>
-              </div>
-              <div className="link-group">
-                <h4 className="link-group-title">Support</h4>
-                <ul className="link-list">
-                  <li><a href="#" className="footer-link">Help Center</a></li>
-                  <li><a href="#" className="footer-link">Live Chat Support</a></li>
-                  <li><a href="#" className="footer-link">Contact Us</a></li>
-                  <li><a href="#" className="footer-link">Terms of Service</a></li>
-                  <li><a href="#" className="footer-link">Privacy Policy</a></li>
-                  <li><a href="#" className="footer-link">Refund Policy</a></li>
+              
+              {/* Support Links */}
+              <div>
+                <h4 className="text-lg font-semibold mb-6 text-white">Support & Info</h4>
+                <ul className="space-y-3">
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Help Center
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Live Chat Support
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    About Us
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Success Stories
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Privacy Policy
+                  </a></li>
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Terms of Service
+                  </a></li>
                 </ul>
               </div>
             </div>
           </div>
-          <div className="footer-bottom">
-            <p className="text-muted-foreground">
-              © 2025 TheGradHelper. All rights reserved.
-            </p>
+          
+          {/* Footer Bottom */}
+          <div className="border-t border-white/10 py-8">
+            <div className="flex flex-col lg:flex-row items-center justify-between space-y-4 lg:space-y-0">
+              <div className="text-gray-400 text-center lg:text-left">
+                © 2025 TheGradHelper. All rights reserved.
+              </div>
+              
+              <div className="flex items-center space-x-6 text-sm text-gray-400">
+                <span>Powered by</span>
+                <div className="font-semibold text-white">OMSOFT TECHNOLOGIES</div>
+              </div>
+              
+              <div className="flex items-center space-x-4 text-sm text-gray-400">
+                <a href="#" className="hover:text-white transition-colors duration-200">Privacy</a>
+                <span>•</span>
+                <a href="#" className="hover:text-white transition-colors duration-200">Terms</a>
+                <span>•</span>
+                <a href="#" className="hover:text-white transition-colors duration-200">Cookies</a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>
