@@ -26,7 +26,6 @@ export function PostTask() {
   });
 
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
-  const [deliverables, setDeliverables] = useState<string[]>(['']);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const taskTypes = [
@@ -96,20 +95,12 @@ export function PostTask() {
         ...(formData.citations && { citations: formData.citations }),
       };
 
-      // Add deliverables only if they exist and are not empty
-      const validDeliverables = deliverables.filter(d => d.trim() !== '');
-      if (validDeliverables.length > 0) {
-        // Backend expects objects/dictionaries, not strings
-        taskData.deliverables = validDeliverables.map((deliverable, index) => ({
-          title: deliverable.trim(),
-          description: deliverable.trim(),
-          order: index + 1,
-          completed: false
-        }));
-      }
+      // Deliverables removed from form submission
 
       // Log the data being sent for debugging
       console.log('Submitting task data:', taskData);
+      console.log('Deliverables type:', typeof taskData.deliverables);
+      console.log('Deliverables value:', taskData.deliverables);
 
       // Get auth token from localStorage
       const token = localStorage.getItem('gradhelper_token');
@@ -133,9 +124,6 @@ export function PostTask() {
         if (taskData.pages) formData.append('pages', taskData.pages.toString());
         if (taskData.citations) formData.append('citations', taskData.citations);
         
-        // Skip deliverables for now to test if the basic form works
-        // TODO: Add deliverables back once we figure out the right format
-        
         // Add files - this matches the API expectation from the attachment
         attachedFiles.forEach((file) => {
           formData.append('attachments', file);
@@ -151,13 +139,25 @@ export function PostTask() {
         });
       } else {
         // No files, use JSON
+        console.log('Before JSON.stringify - taskData.deliverables:', taskData.deliverables);
+        console.log('Before JSON.stringify - typeof deliverables:', typeof taskData.deliverables);
+        console.log('Before JSON.stringify - Array.isArray:', Array.isArray(taskData.deliverables));
+        
+        const jsonBody = JSON.stringify(taskData);
+        console.log('JSON body being sent:', jsonBody);
+        
+        const parsedBack = JSON.parse(jsonBody);
+        console.log('Parsed back for verification:', parsedBack);
+        console.log('Parsed back deliverables type:', typeof parsedBack.deliverables);
+        console.log('Parsed back deliverables Array.isArray:', Array.isArray(parsedBack.deliverables));
+        
         response = await fetch(`${API_BASE_URL}/tasks/`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(token && { 'Authorization': `Bearer ${token}` }),
           },
-          body: JSON.stringify(taskData),
+          body: jsonBody,
         });
       }
 
@@ -200,7 +200,6 @@ export function PostTask() {
           citations: ''
         });
         setAttachedFiles([]);
-        setDeliverables(['']);
       } else {
         // Handle API errors with detailed information
         console.error('API Error Details:', {
@@ -239,21 +238,7 @@ export function PostTask() {
     }
   };
 
-  const addDeliverable = () => {
-    setDeliverables([...deliverables, '']);
-  };
-
-  const updateDeliverable = (index: number, value: string) => {
-    const updated = [...deliverables];
-    updated[index] = value;
-    setDeliverables(updated);
-  };
-
-  const removeDeliverable = (index: number) => {
-    if (deliverables.length > 1) {
-      setDeliverables(deliverables.filter((_, i) => i !== index));
-    }
-  };
+  // Deliverable functions removed
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -539,37 +524,7 @@ export function PostTask() {
               />
             </div>
 
-            {/* Deliverables */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <Label>Expected Deliverables</Label>
-                <Button type="button" variant="outline" size="sm" onClick={addDeliverable}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Deliverable
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {deliverables.map((deliverable, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Input
-                      placeholder={`Deliverable ${index + 1} (e.g., Draft version, Final document, Presentation slides)`}
-                      value={deliverable}
-                      onChange={(e) => updateDeliverable(index, e.target.value)}
-                    />
-                    {deliverables.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => removeDeliverable(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Deliverables section removed */}
 
             {/* File Attachments */}
             <div className="space-y-4">

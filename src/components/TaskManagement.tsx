@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { AddDeliverable } from './AddDeliverable';
 import { TaskDetailModal } from './TaskDetailModal';
 import { TaskRejectModal } from './TaskRejectModal';
+import { useTasks } from '../hooks/useTasks';
+import { Task, DeliverableFile } from '../services/taskService';
+import { fileService, downloadFileHelper, previewFileHelper } from '../services/fileService';
 import { 
   Plus, 
   Search, 
@@ -19,23 +22,21 @@ import {
   Edit,
   Trash2,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  Loader2,
+  Download,
+  Paperclip,
+  ExternalLink,
+  File,
+  Star,
+  TrendingUp,
+  Activity,
+  Award,
+  BookOpen,
+  GraduationCap,
+  Target
 } from 'lucide-react';
 import { toast } from "sonner";
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  subject: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'revision_needed' | 'rejected';
-  priority: 'low' | 'medium' | 'high';
-  dueDate: string;
-  createdAt: string;
-  budget: number;
-  student: string;
-  deliverables: any[];
-}
 
 interface TaskManagementProps {
   userRole: 'student' | 'admin';
@@ -50,6 +51,22 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Use the custom hook for task management
+  const {
+    tasks,
+    loading,
+    error,
+    fetchTasks,
+    refreshTasks,
+    updateTask,
+    updateTaskStatus,
+    deleteTask,
+    assignTask,
+  } = useTasks({
+    searchTerm,
+    statusFilter,
+  });
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -67,85 +84,20 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     }
   }, [openMenuId]);
 
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: '1',
-      title: 'Machine Learning Research Paper',
-      description: 'Comprehensive research paper on ML algorithms with practical implementation',
-      subject: 'Computer Science',
-      status: 'in_progress',
-      priority: 'high',
-      dueDate: '2025-02-15',
-      createdAt: '2025-01-20',
-      budget: 500,
-      student: 'John Smith',
-      deliverables: [
-        {
-          id: 1,
-          title: 'Literature Review',
-          status: 'completed',
-          dueDate: '2025-01-25'
-        },
-        {
-          id: 2,
-          title: 'Methodology Section', 
-          status: 'in_progress',
-          dueDate: '2025-02-01'
-        }
-      ]
-    },
-    {
-      id: '2',
-      title: 'Database Design Assignment',
-      description: 'Design and implement a normalized database system for e-commerce',
-      subject: 'Database Systems',
-      status: 'completed',
-      priority: 'medium',
-      dueDate: '2025-01-30',
-      createdAt: '2025-01-15',
-      budget: 200,
-      student: 'Sarah Johnson',
-      deliverables: [
-        {
-          id: 3,
-          title: 'ER Diagram',
-          status: 'completed',
-          dueDate: '2025-01-20'
-        },
-        {
-          id: 4,
-          title: 'Database Implementation',
-          status: 'completed',
-          dueDate: '2025-01-28'
-        }
-      ]
-    },
-    {
-      id: '3',
-      title: 'Web Development Project',
-      description: 'Full-stack web application using React and Node.js',
-      subject: 'Web Development',
-      status: 'pending',
-      priority: 'medium',
-      dueDate: '2025-02-28',
-      createdAt: '2025-01-25',
-      budget: 750,
-      student: 'Mike Wilson',
-      deliverables: []
-    }
-  ]);
+
 
   const handleAddDeliverable = (task: Task) => {
     setSelectedTask(task);
     setShowAddDeliverable(true);
   };
 
-  const handleDeliverableAdded = (newDeliverable: any) => {
-    setTasks(prev => prev.map(task => 
-      task.id === selectedTask?.id 
-        ? { ...task, deliverables: [...task.deliverables, newDeliverable] }
-        : task
-    ));
+  const handleDeliverableAdded = async (newDeliverable: any) => {
+    // Refresh tasks to get updated data including the new deliverable
+    await refreshTasks();
+    
+    toast.success('Deliverable added successfully', {
+      description: `"${newDeliverable.title}" has been added to the task.`,
+    });
   };
 
   const handleViewDetails = (task: Task) => {
@@ -160,22 +112,21 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     setOpenMenuId(null);
   };
 
-  const handleTaskUpdate = (updatedTask: Task) => {
-    setTasks(prev => prev.map(task => 
-      task.id === updatedTask.id ? updatedTask : task
-    ));
+  const handleTaskUpdate = (updatedTask: any) => {
+    // The useTasks hook will handle the state update
+    refreshTasks();
   };
 
-  const handleTaskRejection = (taskId: string, reason: string, feedback: string) => {
-    setTasks(prev => prev.map(task => 
-      task.id === taskId 
-        ? { ...task, status: 'rejected' as const, rejectionReason: reason, rejectionFeedback: feedback }
-        : task
-    ));
-    
-    // Close modals
-    setShowRejectModal(false);
-    setSelectedTask(null);
+  const handleTaskRejection = async (taskId: string, reason: string, feedback: string) => {
+    try {
+      await updateTaskStatus(taskId, 'rejected', reason, feedback);
+      
+      // Close modals
+      setShowRejectModal(false);
+      setSelectedTask(null);
+    } catch (error) {
+      console.error('Error rejecting task:', error);
+    }
   };
 
   const handleMenuToggle = (taskId: string) => {
@@ -194,42 +145,51 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     setOpenMenuId(null);
   };
 
-  const handleDeleteTask = (task: Task) => {
+  const handleDeleteTask = async (task: Task) => {
     if (window.confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
-      setTasks(prev => prev.filter(t => t.id !== task.id));
-      toast.success('Task deleted successfully');
+      try {
+        await deleteTask(task.id, 'Deleted by user');
+      } catch (error) {
+        console.error('Error deleting task:', error);
+      }
     }
     setOpenMenuId(null);
   };
 
-  const handleMarkComplete = (task: Task) => {
+  const handleMarkComplete = async (task: Task) => {
     if (task.status === 'completed') {
       toast.info('Task is already marked as completed');
       setOpenMenuId(null);
       return;
     }
 
-    const updatedTask = { ...task, status: 'completed' as const };
-    setTasks(prev => prev.map(t => 
-      t.id === task.id ? updatedTask : t
-    ));
-    
-    toast.success('Task marked as completed!', {
-      description: `"${task.title}" has been marked as completed successfully.`
-    });
+    try {
+      await updateTaskStatus(task.id, 'completed');
+    } catch (error) {
+      console.error('Error marking task as complete:', error);
+    }
     
     setOpenMenuId(null);
   };
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.subject.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  // Filter is handled by the API, so we use tasks directly
+  const filteredTasks = tasks;
+
+  // Handler for search and filter changes
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+  };
+
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
+  };
+
+  // Sorting functionality removed - backend doesn't support it yet
+
+  // Handle refresh button click
+  const handleRefresh = () => {
+    refreshTasks();
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -251,262 +211,582 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     }
   };
 
+  // Enhanced file download handler using file service
+  const handleDownloadFile = async (file: DeliverableFile | any, context?: string) => {
+    try {
+      await downloadFileHelper(file, context);
+      toast.success(`Downloading ${file.name}...`, {
+        description: context ? `From: ${context}` : undefined,
+      });
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast.error('Failed to download file', {
+        description: 'Please check your connection and try again.',
+      });
+    }
+  };
+
+  // Enhanced file preview handler
+  const handlePreviewFile = async (file: DeliverableFile | any, context?: string) => {
+    try {
+      previewFileHelper(file);
+      toast.info(`Opening ${file.name}...`, {
+        description: context ? `From: ${context}` : undefined,
+      });
+    } catch (error) {
+      console.error('Error previewing file:', error);
+      toast.error('Failed to open file', {
+        description: 'Please try downloading the file instead.',
+      });
+    }
+  };
+
+  // Enhanced file type icon helper
+  const getFileTypeIcon = (fileName: string) => {
+    if (!fileName || typeof fileName !== 'string') {
+      return <File className="w-4 h-4 text-gray-500" />;
+    }
+    const ext = fileName.split('.').pop()?.toLowerCase();
+    const iconClass = "w-4 h-4";
+    
+    switch (ext) {
+      case 'pdf':
+        return <FileText className={`${iconClass} text-red-600`} />;
+      case 'doc':
+      case 'docx':
+        return <FileText className={`${iconClass} text-blue-600`} />;
+      case 'xls':
+      case 'xlsx':
+        return <FileText className={`${iconClass} text-green-600`} />;
+      case 'ppt':
+      case 'pptx':
+        return <FileText className={`${iconClass} text-orange-600`} />;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'svg':
+        return <Eye className={`${iconClass} text-purple-600`} />;
+      case 'zip':
+      case 'rar':
+      case '7z':
+        return <Paperclip className={`${iconClass} text-gray-600`} />;
+      case 'txt':
+      case 'md':
+        return <FileText className={`${iconClass} text-slate-600`} />;
+      case 'mp4':
+      case 'avi':
+      case 'mov':
+        return <Eye className={`${iconClass} text-indigo-600`} />;
+      case 'mp3':
+      case 'wav':
+      case 'flac':
+        return <Eye className={`${iconClass} text-pink-600`} />;
+      default:
+        return <FileText className={`${iconClass} text-gray-600`} />;
+    }
+  };
+
+  // Use file service for formatting
+  const formatFileSize = (bytes: number) => {
+    return fileService.formatFileSize(bytes);
+  };
+
+  // Check if file can be previewed
+  const canPreviewFile = (fileName: string, mimeType?: string) => {
+    return fileService.canPreviewFile(fileName, mimeType);
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="card">
-        <div className="card-header">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Professional Header Section */}
+      <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-8">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="card-title">
-                {userRole === 'student' ? 'My Tasks' : 'All Tasks'}
-              </h2>
-              <p className="card-description">
-                {userRole === 'student' 
-                  ? 'Manage your assignments and track progress'
-                  : 'Monitor and manage all student tasks'
-                }
-              </p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search tasks..."
-                  className="pl-10 pr-4 py-2 border border-border rounded-lg w-64"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
+                {userRole === 'student' ? (
+                  <GraduationCap className="w-8 h-8 text-white" />
+                ) : (
+                  <Target className="w-8 h-8 text-white" />
+                )}
               </div>
-              <select
-                className="px-3 py-2 border border-border rounded-lg"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="in_progress">In Progress</option>
-                <option value="completed">Completed</option>
-                <option value="revision_needed">Needs Revision</option>
-                <option value="rejected">Rejected</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="card-content">
-          <div className="space-y-4">
-            {filteredTasks.map((task) => (
-              <div key={task.id} className="task-item">
-                <div className="task-header">
-                  <div className="task-info">
-                    <div className="task-title-row">
-                      <h3 className="task-title">{task.title}</h3>
-                      <div className="task-badges">
-                        <span className={`badge ${getStatusColor(task.status)}`}>
-                          {task.status.replace('_', ' ')}
-                        </span>
-                        <span className={`priority-badge ${getPriorityColor(task.priority)}`}>
-                          {task.priority} priority
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <p className="task-description">{task.description}</p>
-                    
-                    <div className="task-meta">
-                      <div className="meta-item">
-                        <Calendar className="w-4 h-4" />
-                        <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
-                      </div>
-                      <div className="meta-item">
-                        <FileText className="w-4 h-4" />
-                        <span>{task.subject}</span>
-                      </div>
-                      {userRole === 'admin' && (
-                        <div className="meta-item">
-                          <User className="w-4 h-4" />
-                          <span>{task.student}</span>
-                        </div>
-                      )}
-                      <div className="meta-item">
-                        <DollarSign className="w-4 h-4" />
-                        <span>${task.budget}</span>
-                      </div>
-                    </div>
-
-                    {/* Deliverables Section */}
-                    <div className="task-deliverables">
-                      <div className="deliverables-header">
-                        <h4>Deliverables ({task.deliverables.length})</h4>
-                        {userRole === 'student' && (
-                          <button 
-                            className="btn btn-sm btn-outline"
-                            onClick={() => handleAddDeliverable(task)}
-                          >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add Deliverable
-                          </button>
-                        )}
-                      </div>
-                      
-                      {task.deliverables.length > 0 ? (
-                        <div className="deliverables-list">
-                          {task.deliverables.map((deliverable) => (
-                            <div key={deliverable.id} className="deliverable-item-small">
-                              <div className="deliverable-info">
-                                <span className="deliverable-name">{deliverable.title}</span>
-                                <span className={`badge badge-sm ${getStatusColor(deliverable.status)}`}>
-                                  {deliverable.status.replace('_', ' ')}
-                                </span>
-                              </div>
-                              <span className="deliverable-due">
-                                Due: {new Date(deliverable.dueDate).toLocaleDateString()}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="no-deliverables">
-                          No deliverables added yet.
-                          {userRole === 'student' && " Click 'Add Deliverable' to get started."}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="task-actions">
-                    <button 
-                      className="btn btn-outline btn-sm"
-                      onClick={() => handleViewDetails(task)}
-                    >
-                      <Eye className="w-4 h-4 mr-2" />
-                      View Details
-                    </button>
-                    <div style={{ position: 'relative' }} ref={openMenuId === task.id ? menuRef : null}>
-                      <button 
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => handleMenuToggle(task.id)}
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                      
-                      {openMenuId === task.id && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '100%',
-                          right: 0,
-                          marginTop: '0.5rem',
-                          backgroundColor: 'white',
-                          border: '1px solid #e2e8f0',
-                          borderRadius: '0.5rem',
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                          zIndex: 10,
-                          minWidth: '180px',
-                          padding: '0.5rem'
-                        }}>
-                          <button 
-                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
-                            onClick={() => handleViewDetails(task)}
-                          >
-                            <Eye className="w-4 h-4" />
-                            View Details
-                          </button>
-                          
-                          {userRole === 'admin' && (
-                            <>
-                              <button 
-                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
-                                onClick={() => handleContactStudent(task)}
-                              >
-                                <MessageSquare className="w-4 h-4" />
-                                Contact Student
-                              </button>
-                              
-                              {task.status !== 'completed' && task.status !== 'rejected' && (
-                                <button 
-                                  className="w-full text-left px-3 py-2 text-sm text-green-600 hover:bg-green-50 rounded flex items-center gap-2"
-                                  onClick={() => handleMarkComplete(task)}
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                  Mark as Complete
-                                </button>
-                              )}
-                              
-                              {task.status !== 'rejected' && task.status !== 'completed' && (
-                                <button 
-                                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded flex items-center gap-2"
-                                  onClick={() => handleRejectTask(task)}
-                                >
-                                  <XCircle className="w-4 h-4" />
-                                  Reject Task
-                                </button>
-                              )}
-                              
-                              <div style={{ borderTop: '1px solid #e2e8f0', margin: '0.5rem 0' }} />
-                              
-                              <button 
-                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
-                                onClick={() => handleEditTask(task)}
-                              >
-                                <Edit className="w-4 h-4" />
-                                Edit Task
-                              </button>
-                              
-                              <button 
-                                className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded flex items-center gap-2"
-                                onClick={() => handleDeleteTask(task)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                                Delete Task
-                              </button>
-                            </>
-                          )}
-                          
-                          {userRole === 'student' && (
-                            <>
-                              <button 
-                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
-                                onClick={() => handleContactStudent(task)}
-                              >
-                                <MessageSquare className="w-4 h-4" />
-                                Contact Admin
-                              </button>
-                              
-                              {task.status !== 'completed' && task.status !== 'rejected' && (
-                                <button 
-                                  className="w-full text-left px-3 py-2 text-sm text-green-600 hover:bg-green-50 rounded flex items-center gap-2"
-                                  onClick={() => handleMarkComplete(task)}
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                  Mark as Complete
-                                </button>
-                              )}
-                              
-                              <button 
-                                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded flex items-center gap-2"
-                                onClick={() => handleEditTask(task)}
-                              >
-                                <Edit className="w-4 h-4" />
-                                Edit Task
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  {userRole === 'student' ? 'My Academic Tasks' : 'Task Management Center'}
+                </h1>
+                <p className="text-slate-600 mt-1 text-lg">
+                  {userRole === 'student' 
+                    ? 'Track your academic progress and manage assignments with precision'
+                    : 'Oversee student assignments and monitor academic achievements'
+                  }
+                </p>
               </div>
-            ))}
+            </div>
+            
+            {/* Task Statistics */}
+            <div className="hidden lg:flex items-center space-x-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">{filteredTasks.filter(t => t.status === 'completed').length}</div>
+                <div className="text-sm text-slate-600">Completed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600">{filteredTasks.filter(t => t.status === 'in_progress').length}</div>
+                <div className="text-sm text-slate-600">In Progress</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">{filteredTasks.filter(t => t.status === 'pending').length}</div>
+                <div className="text-sm text-slate-600">Pending</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {showAddDeliverable && selectedTask && (
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        {/* Professional Controls Panel */}
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/60 p-6">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search tasks by title, subject, or student..."
+                  className="pl-12 pr-6 py-3 border border-slate-200 rounded-xl w-80 bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                  value={searchTerm}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                />
+              </div>
+              
+              <select
+                className="px-4 py-3 border border-slate-200 rounded-xl bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                value={statusFilter}
+                onChange={(e) => handleStatusFilterChange(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                <option value="pending">📋 Pending</option>
+                <option value="in_progress">⚡ In Progress</option>
+                <option value="completed">✅ Completed</option>
+                <option value="revision_needed">🔄 Needs Revision</option>
+                <option value="rejected">❌ Rejected</option>
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Refresh tasks"
+              >
+                {loading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-5 h-5" />
+                )}
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Professional Content Area */}
+        <div className="space-y-6">
+          {/* Loading State */}
+          {loading && (
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/60 p-12">
+              <div className="flex flex-col items-center justify-center space-y-4">
+                <div className="relative">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full opacity-20 animate-pulse"></div>
+                  <Loader2 className="w-8 h-8 text-blue-600 animate-spin absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Loading Your Tasks</h3>
+                  <p className="text-slate-500">Please wait while we fetch your academic assignments...</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-red-200/60 p-12">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle className="w-8 h-8 text-red-600" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">Unable to Load Tasks</h3>
+                <p className="text-slate-600 mb-6 max-w-md mx-auto">{error}</p>
+                <button
+                  onClick={handleRefresh}
+                  className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  <RefreshCw className="w-5 h-5" />
+                  <span>Try Again</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && filteredTasks.length === 0 && (
+            <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/60 p-12">
+              <div className="text-center">
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <BookOpen className="w-8 h-8 text-slate-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-slate-900 mb-2">No Tasks Found</h3>
+                <p className="text-slate-600 max-w-md mx-auto">
+                  {searchTerm || statusFilter !== 'all' 
+                    ? 'Try adjusting your search criteria or filter settings to find more tasks.'
+                    : userRole === 'student' 
+                      ? 'You haven\'t created any academic tasks yet. Start by creating your first assignment!'
+                      : 'No tasks have been created by students yet. Check back later for new submissions.'
+                  }
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Professional Tasks Grid */}
+          {!loading && !error && filteredTasks.length > 0 && (
+            <div className="grid gap-6 lg:gap-8">
+              {filteredTasks.map((task) => (
+              <div key={task.id} className="group bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/60 hover:shadow-2xl hover:border-slate-300/60 transition-all duration-300 overflow-hidden">
+                {/* Task Header with Gradient */}
+                <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 px-8 py-6 border-b border-slate-100">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-3 mb-3">
+                        <div className={`p-2 rounded-lg ${
+                          task.priority === 'high' ? 'bg-red-100 text-red-600' :
+                          task.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' :
+                          'bg-green-100 text-green-600'
+                        }`}>
+                          {task.priority === 'high' ? <AlertCircle className="w-5 h-5" /> :
+                           task.priority === 'medium' ? <Clock className="w-5 h-5" /> :
+                           <CheckCircle className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-700 transition-colors duration-200">
+                            {task.title}
+                          </h3>
+                          <div className="flex items-center space-x-3 mt-1">
+                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(task.status)}`}>
+                              {task.status.replace('_', ' ').toUpperCase()}
+                            </span>
+                            <span className={`text-sm font-medium ${getPriorityColor(task.priority)}`}>
+                              {task.priority.toUpperCase()} PRIORITY
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <p className="text-slate-600 text-base leading-relaxed mb-4">{task.description}</p>
+                      
+                      {/* Enhanced Meta Information */}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="flex items-center space-x-2 text-slate-600">
+                          <Calendar className="w-4 h-4 text-blue-500" />
+                          <span className="text-sm font-medium">Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-slate-600">
+                          <BookOpen className="w-4 h-4 text-green-500" />
+                          <span className="text-sm font-medium">{task.subject}</span>
+                        </div>
+                        {userRole === 'admin' && (
+                          <div className="flex items-center space-x-2 text-slate-600">
+                            <GraduationCap className="w-4 h-4 text-purple-500" />
+                            <span className="text-sm font-medium">{task.student.name}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center space-x-2 text-slate-600">
+                          <DollarSign className="w-4 h-4 text-emerald-500" />
+                          <span className="text-sm font-medium">${task.budget}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Professional Action Buttons */}
+                    <div className="flex items-center space-x-2 ml-6">
+                      <button 
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                        onClick={() => handleViewDetails(task)}
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span className="hidden sm:inline">Details</span>
+                      </button>
+                      <div className="relative" ref={openMenuId === task.id ? menuRef : null}>
+                        <button 
+                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all duration-200"
+                          onClick={() => handleMenuToggle(task.id)}
+                        >
+                          <MoreHorizontal className="w-5 h-5" />
+                        </button>
+                        
+                        {openMenuId === task.id && (
+                          <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 z-20 py-2">
+                            <button 
+                              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                              onClick={() => handleViewDetails(task)}
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>View Details</span>
+                            </button>
+                            
+                            {userRole === 'admin' && (
+                              <>
+                                <button 
+                                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                                  onClick={() => handleContactStudent(task)}
+                                >
+                                  <MessageSquare className="w-4 h-4" />
+                                  <span>Contact Student</span>
+                                </button>
+                                
+                                {task.status !== 'completed' && task.status !== 'rejected' && (
+                                  <button 
+                                    className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center space-x-2"
+                                    onClick={() => handleMarkComplete(task)}
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                    <span>Mark Complete</span>
+                                  </button>
+                                )}
+                                
+                                {task.status !== 'rejected' && task.status !== 'completed' && (
+                                  <button 
+                                    className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center space-x-2"
+                                    onClick={() => handleRejectTask(task)}
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                    <span>Reject Task</span>
+                                  </button>
+                                )}
+                                
+                                <div className="border-t border-slate-100 my-1" />
+                                
+                                <button 
+                                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                                  onClick={() => handleEditTask(task)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  <span>Edit Task</span>
+                                </button>
+                                
+                                <button 
+                                  className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center space-x-2"
+                                  onClick={() => handleDeleteTask(task)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  <span>Delete Task</span>
+                                </button>
+                              </>
+                            )}
+                            
+                            {userRole === 'student' && (
+                              <>
+                                <button 
+                                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                                  onClick={() => handleContactStudent(task)}
+                                >
+                                  <MessageSquare className="w-4 h-4" />
+                                  <span>Contact Admin</span>
+                                </button>
+                                
+                                {task.status !== 'completed' && task.status !== 'rejected' && (
+                                  <button 
+                                    className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center space-x-2"
+                                    onClick={() => handleMarkComplete(task)}
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                    <span>Mark Complete</span>
+                                  </button>
+                                )}
+                                
+                                <button 
+                                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                                  onClick={() => handleEditTask(task)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                  <span>Edit Task</span>
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Task Attachments Section */}
+                {task.attachments && task.attachments.length > 0 && (
+                  <div className="px-8 py-4 bg-slate-50/50 border-b border-slate-100">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-slate-700 flex items-center space-x-2">
+                        <Paperclip className="w-4 h-4 text-slate-500" />
+                        <span>Task Attachments ({task.attachments.length})</span>
+                      </h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {task.attachments.map((file, index) => (
+                        <div key={index} className="group flex items-center space-x-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                          <div className="flex-shrink-0">
+                            {getFileTypeIcon(file?.name || 'unknown')}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-900 truncate">{file?.name || 'Unknown File'}</p>
+                            <p className="text-xs text-slate-500">{formatFileSize(file?.size || 0)}</p>
+                          </div>
+                          <div className="flex-shrink-0 flex items-center space-x-1">
+                            <button
+                              onClick={() => handleDownloadFile(file, `Task: ${task.title}`)}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all duration-200 file-action-btn download"
+                              title="Download file"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
+                            {canPreviewFile(file?.name || 'unknown', file.type) ? (
+                              <button
+                                onClick={() => handlePreviewFile(file, `Task: ${task.title}`)}
+                                className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-md transition-all duration-200 file-action-btn view"
+                                title="Preview file"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handlePreviewFile(file, `Task: ${task.title}`)}
+                                className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-md transition-all duration-200 file-action-btn view"
+                                title="Open file in new tab"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Professional Deliverables Section */}
+                <div className="px-8 py-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
+                      <Award className="w-5 h-5 text-blue-500" />
+                      <span>Deliverables ({task.deliverables?.length || 0})</span>
+                    </h4>
+                    {userRole === 'student' && (
+                      <button 
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg"
+                        onClick={() => handleAddDeliverable(task)}
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Add Deliverable</span>
+                      </button>
+                    )}
+                  </div>
+                  
+                  {task.deliverables && task.deliverables.length > 0 ? (
+                    <div className="grid gap-3">
+                      {task.deliverables.map((deliverable) => (
+                        <div key={deliverable.id} className="group bg-gradient-to-r from-slate-50 to-blue-50/30 rounded-xl p-4 border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <h5 className="font-semibold text-slate-900 truncate">{deliverable.title}</h5>
+                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusColor(deliverable.status)}`}>
+                                  {deliverable.status.replace('_', ' ').toUpperCase()}
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-4 text-sm text-slate-600">
+                                <div className="flex items-center space-x-1">
+                                  <Calendar className="w-3.5 h-3.5" />
+                                  <span>Due: {new Date(deliverable.dueDate).toLocaleDateString()}</span>
+                                </div>
+                                {deliverable.files && deliverable.files.length > 0 && (
+                                  <div className="flex items-center space-x-1">
+                                    <Paperclip className="w-3.5 h-3.5" />
+                                    <span>{deliverable.files.length} file{deliverable.files.length !== 1 ? 's' : ''}</span>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Deliverable Files */}
+                              {deliverable.files && deliverable.files.length > 0 && (
+                                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {deliverable.files.map((file, fileIndex) => (
+                                    <div key={fileIndex} className="flex items-center space-x-2 p-2 bg-white rounded-lg border border-slate-100 hover:border-blue-200 transition-all duration-200">
+                                      <div className="flex-shrink-0">
+                                        {getFileTypeIcon(file?.name || 'unknown')}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-slate-800 truncate">{file?.name || 'Unknown File'}</p>
+                                        <p className="text-xs text-slate-500">{formatFileSize(file?.size || 0)}</p>
+                                      </div>
+                                      <div className="flex-shrink-0 flex items-center space-x-1">
+                                        <button
+                                          onClick={() => handleDownloadFile(file, `${task.title} - ${deliverable.title}`)}
+                                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all duration-200 file-action-btn download"
+                                          title="Download file"
+                                        >
+                                          <Download className="w-3.5 h-3.5" />
+                                        </button>
+                                        {canPreviewFile(file?.name || 'unknown') ? (
+                                          <button
+                                            onClick={() => handlePreviewFile(file, `${task.title} - ${deliverable.title}`)}
+                                            className="p-1 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded transition-all duration-200 file-action-btn view"
+                                            title="Preview file"
+                                          >
+                                            <Eye className="w-3.5 h-3.5" />
+                                          </button>
+                                        ) : (
+                                          <button
+                                            onClick={() => handlePreviewFile(file, `${task.title} - ${deliverable.title}`)}
+                                            className="p-1 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded transition-all duration-200 file-action-btn view"
+                                            title="Open file in new tab"
+                                          >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <FileText className="w-6 h-6 text-slate-400" />
+                      </div>
+                      <p className="text-slate-600 font-medium mb-1">No deliverables yet</p>
+                      <p className="text-sm text-slate-500">
+                        {userRole === 'student' && "Click 'Add Deliverable' to create your first submission."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modals */}
+        {showAddDeliverable && selectedTask && (
         <AddDeliverable
-          taskId={selectedTask.id}
-          taskTitle={selectedTask.title}
+          taskId={selectedTask!.id}
+          taskTitle={selectedTask!.title}
           onClose={() => {
             setShowAddDeliverable(false);
             setSelectedTask(null);
@@ -517,7 +797,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
 
       {showTaskDetail && selectedTask && (
         <TaskDetailModal
-          task={selectedTask}
+          task={selectedTask!}
           userRole={userRole}
           isOpen={showTaskDetail}
           onClose={() => {
@@ -530,7 +810,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
 
       {showRejectModal && selectedTask && (
         <TaskRejectModal
-          task={selectedTask}
+          task={selectedTask!}
           isOpen={showRejectModal}
           onClose={() => {
             setShowRejectModal(false);

@@ -29,8 +29,13 @@ interface Task {
   priority: 'low' | 'medium' | 'high';
   dueDate: string;
   createdAt: string;
+  updatedAt: string;
   budget: number;
-  student: string;
+  student: {
+    id: string;
+    name: string;
+    email: string;
+  };
   deliverables: any[];
   requirements?: string;
   attachments?: any[];
@@ -359,7 +364,7 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
                       <User className="w-5 h-5 text-muted-foreground" />
                       <div>
                         <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Name</div>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{task.student}</div>
+                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{task.student.name}</div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>

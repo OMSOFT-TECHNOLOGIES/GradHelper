@@ -286,191 +286,814 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <div key={index} className="card">
-            <div className="card-content p-6">
+    <div 
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        padding: '32px 24px'
+      }}
+    >
+      {/* Professional Header */}
+      <div 
+        style={{
+          background: 'rgba(255, 255, 255, 0.95)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: '24px',
+          padding: '32px',
+          marginBottom: '32px',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.05)',
+          border: '1px solid rgba(255, 255, 255, 0.2)'
+        }}
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div>
+            <h1 
+              style={{
+                fontSize: '2.5rem',
+                fontWeight: '800',
+                background: 'linear-gradient(135deg, #1e40af 0%, #7c3aed 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                marginBottom: '8px'
+              }}
+            >
+              Admin Dashboard
+            </h1>
+            <p 
+              style={{
+                fontSize: '1.1rem',
+                color: '#64748b',
+                fontWeight: '500'
+              }}
+            >
+              Comprehensive overview of your platform's performance and analytics
+            </p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <div 
+              style={{
+                padding: '12px 20px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderRadius: '12px',
+                color: 'white',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+              }}
+            >
+              <TrendingUp className="w-5 h-5" />
+              <span>All Systems Operational</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        {/* Enhanced Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {stats.map((stat, index) => (
+            <div 
+              key={index} 
+              style={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                borderRadius: '20px',
+                padding: '24px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                transition: 'all 0.3s ease',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.1)';
+              }}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">{stat.title}</p>
-                  <p className="text-2xl font-bold">{stat.value}</p>
-                  <p className={`text-sm ${stat.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                  <p 
+                    style={{
+                      fontSize: '0.875rem',
+                      color: '#64748b',
+                      fontWeight: '500',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    {stat.title}
+                  </p>
+                  <p 
+                    style={{
+                      fontSize: '2rem',
+                      fontWeight: '800',
+                      color: '#1e293b',
+                      marginBottom: '8px'
+                    }}
+                  >
+                    {stat.value}
+                  </p>
+                  <p 
+                    style={{
+                      fontSize: '0.875rem',
+                      fontWeight: '600',
+                      color: stat.trend.startsWith('+') ? '#10b981' : '#ef4444',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    {stat.trend.startsWith('+') ? 
+                      <TrendingUp className="w-4 h-4" /> : 
+                      <div style={{ transform: 'rotate(180deg)' }}><TrendingUp className="w-4 h-4" /></div>
+                    }
                     {stat.trend} from last month
                   </p>
                 </div>
-                <div className={`p-3 rounded-full ${stat.color} bg-opacity-10`}>
-                  <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                <div 
+                  style={{
+                    padding: '16px',
+                    borderRadius: '16px',
+                    background: `${stat.color.replace('text-', '').replace('-600', '')}-50`,
+                    boxShadow: `0 4px 12px ${stat.color.replace('text-', '').replace('-600', '')}-200`
+                  }}
+                  className={`${stat.color.replace('text-', 'bg-').replace('-600', '-50')}`}
+                >
+                  <stat.icon className={`w-8 h-8 ${stat.color}`} />
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">Quick Actions</h2>
-          <p className="card-description">Manage your most common administrative tasks</p>
+          ))}
         </div>
-        <div className="card-content">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        {/* Enhanced Quick Actions */}
+        <div 
+          style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '24px',
+            padding: '32px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          <div className="mb-8">
+            <h2 
+              style={{
+                fontSize: '1.875rem',
+                fontWeight: '700',
+                color: '#1e293b',
+                marginBottom: '8px'
+              }}
+            >
+              Quick Actions
+            </h2>
+            <p 
+              style={{
+                color: '#64748b',
+                fontSize: '1.1rem'
+              }}
+            >
+              Manage your most common administrative tasks with one-click access
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {quickActions.map((action, index) => (
               <button
                 key={index}
                 onClick={() => handleQuickAction(action.title, action.action)}
-                className="flex flex-col items-center p-6 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '20px',
+                  padding: '24px',
+                  transition: 'all 0.3s ease',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.9) 100%)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08)';
+                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%)';
+                }}
               >
-                <div className={`p-3 rounded-full ${action.color} mb-3`}>
-                  <action.icon className="w-6 h-6" />
+                <div 
+                  style={{
+                    padding: '20px',
+                    borderRadius: '20px',
+                    marginBottom: '16px',
+                    background: action.color.includes('blue') ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' :
+                               action.color.includes('green') ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' :
+                               action.color.includes('purple') ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' :
+                               action.color.includes('orange') ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' :
+                               action.color.includes('yellow') ? 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)' :
+                               'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    boxShadow: action.color.includes('blue') ? '0 8px 24px rgba(59, 130, 246, 0.3)' :
+                               action.color.includes('green') ? '0 8px 24px rgba(16, 185, 129, 0.3)' :
+                               action.color.includes('purple') ? '0 8px 24px rgba(139, 92, 246, 0.3)' :
+                               action.color.includes('orange') ? '0 8px 24px rgba(245, 158, 11, 0.3)' :
+                               action.color.includes('yellow') ? '0 8px 24px rgba(234, 179, 8, 0.3)' :
+                               '0 8px 24px rgba(99, 102, 241, 0.3)'
+                  }}
+                >
+                  <action.icon className="w-8 h-8 text-white" />
                 </div>
-                <h3 className="font-medium text-center">{action.title}</h3>
-                <p className="text-sm text-muted-foreground text-center mt-1">{action.description}</p>
+                <h3 
+                  style={{
+                    fontWeight: '600',
+                    color: '#1e293b',
+                    fontSize: '1.125rem',
+                    marginBottom: '8px'
+                  }}
+                >
+                  {action.title}
+                </h3>
+                <p 
+                  style={{
+                    color: '#64748b',
+                    fontSize: '0.9rem',
+                    lineHeight: '1.5'
+                  }}
+                >
+                  {action.description}
+                </p>
               </button>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Tasks Requiring Attention */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">Tasks Requiring Attention</h2>
-          <p className="card-description">Recent submissions and deliverables awaiting your review</p>
-        </div>
-        <div className="card-content">
-          <div className="space-y-4">
+        {/* Enhanced Tasks Requiring Attention */}
+        <div 
+          style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: '24px',
+            padding: '32px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+          }}
+        >
+          <div className="mb-8">
+            <h2 
+              style={{
+                fontSize: '1.875rem',
+                fontWeight: '700',
+                color: '#1e293b',
+                marginBottom: '8px'
+              }}
+            >
+              Tasks Requiring Attention
+            </h2>
+            <p 
+              style={{
+                color: '#64748b',
+                fontSize: '1.1rem'
+              }}
+            >
+              Recent submissions and deliverables awaiting your review
+            </p>
+          </div>
+          <div className="space-y-6">
             {tasksRequiringAttention.map((task) => (
-              <div key={task.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className="avatar w-10 h-10">
-                    <img src={task.studentAvatar} alt={task.student} />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium">{task.title}</h4>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <p className="text-sm text-muted-foreground">Student: {task.student}</p>
-                      <span className="text-sm text-muted-foreground">{task.type}</span>
-                      <span className="text-sm text-muted-foreground">Submitted: {task.submittedAt}</span>
+              <div 
+                key={task.id} 
+                style={{
+                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%)',
+                  border: '1px solid rgba(255, 255, 255, 0.3)',
+                  borderRadius: '20px',
+                  padding: '24px',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08)';
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-6">
+                    <div 
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                        border: '3px solid rgba(255, 255, 255, 0.8)',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                      }}
+                    >
+                      <img 
+                        src={task.studentAvatar} 
+                        alt={task.student} 
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
                     </div>
-                    <div className="flex items-center space-x-2 mt-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${task.priorityColor}`}>
-                        {task.priority}
-                      </span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${task.statusColor}`}>
-                        {task.status}
-                      </span>
+                    <div className="flex-1">
+                      <h4 
+                        style={{
+                          fontWeight: '600',
+                          fontSize: '1.25rem',
+                          color: '#1e293b',
+                          marginBottom: '8px'
+                        }}
+                      >
+                        {task.title}
+                      </h4>
+                      <div className="flex items-center space-x-6 mb-4">
+                        <p 
+                          style={{
+                            fontSize: '0.9rem',
+                            color: '#64748b',
+                            fontWeight: '500'
+                          }}
+                        >
+                          <span style={{ fontWeight: '600', color: '#374151' }}>Student:</span> {task.student}
+                        </p>
+                        <span 
+                          style={{
+                            fontSize: '0.9rem',
+                            color: '#64748b',
+                            fontWeight: '500'
+                          }}
+                        >
+                          <span style={{ fontWeight: '600', color: '#374151' }}>Type:</span> {task.type}
+                        </span>
+                        <span 
+                          style={{
+                            fontSize: '0.9rem',
+                            color: '#64748b',
+                            fontWeight: '500'
+                          }}
+                        >
+                          <span style={{ fontWeight: '600', color: '#374151' }}>Submitted:</span> {task.submittedAt}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span 
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            background: task.priority === 'High Priority' ? 'linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)' :
+                                       task.priority === 'Medium' ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' :
+                                       'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+                            color: task.priority === 'High Priority' ? '#dc2626' :
+                                   task.priority === 'Medium' ? '#d97706' : '#16a34a',
+                            border: `1px solid ${task.priority === 'High Priority' ? '#fca5a5' :
+                                                 task.priority === 'Medium' ? '#fcd34d' : '#86efac'}`
+                          }}
+                        >
+                          {task.priority}
+                        </span>
+                        <span 
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            background: task.status === 'Pending Review' ? 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)' :
+                                       task.status === 'Pending Approval' ? 'linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)' :
+                                       'linear-gradient(135deg, #fecaca 0%, #fca5a5 100%)',
+                            color: task.status === 'Pending Review' ? '#1d4ed8' :
+                                   task.status === 'Pending Approval' ? '#ea580c' : '#dc2626',
+                            border: `1px solid ${task.status === 'Pending Review' ? '#93c5fd' :
+                                                 task.status === 'Pending Approval' ? '#fdba74' : '#fca5a5'}`
+                          }}
+                        >
+                          {task.status}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    className="btn btn-outline btn-sm"
-                    onClick={() => handleTaskReview(task.title)}
-                  >
-                    Review
-                  </button>
-                  <button 
-                    className="btn btn-primary btn-sm"
-                    onClick={() => handleTaskApproval(task.title, task.student)}
-                  >
-                    Approve
-                  </button>
-                  <button 
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => handleAddBill(task)}
-                  >
-                    <DollarSign className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    <button 
+                      onClick={() => handleTaskReview(task.title)}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '12px',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
+                        color: '#1d4ed8',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                        e.currentTarget.style.color = 'white';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)';
+                        e.currentTarget.style.color = '#1d4ed8';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      Review
+                    </button>
+                    <button 
+                      onClick={() => handleTaskApproval(task.title, task.student)}
+                      style={{
+                        padding: '10px 16px',
+                        borderRadius: '12px',
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        color: 'white',
+                        border: 'none',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button 
+                      onClick={() => handleAddBill(task)}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: '12px',
+                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)',
+                        color: '#d97706',
+                        border: '1px solid rgba(245, 158, 11, 0.3)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+                        e.currentTarget.style.color = 'white';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)';
+                        e.currentTarget.style.color = '#d97706';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <DollarSign className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Revenue Analytics */}
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Revenue Analytics</h2>
-          <div className="flex items-center space-x-2">
-            <BarChart3 className="w-5 h-5 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Financial Performance</span>
-          </div>
-        </div>
-
-        {/* Revenue Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="card">
-            <div className="card-content p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Monthly Revenue</p>
-                  <p className="text-2xl font-bold text-blue-600">$13,200</p>
-                  <p className="text-sm text-green-600">+6.1% vs last month</p>
+        {/* Enhanced Revenue Analytics */}
+        <div className="space-y-8">
+          <div 
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '24px',
+              padding: '32px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
+              <div>
+                <h2 
+                  style={{
+                    fontSize: '2rem',
+                    fontWeight: '700',
+                    color: '#1e293b',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Revenue Analytics
+                </h2>
+                <p 
+                  style={{
+                    color: '#64748b',
+                    fontSize: '1.1rem'
+                  }}
+                >
+                  Comprehensive financial performance insights and trends
+                </p>
+              </div>
+              <div className="flex items-center space-x-3">
+                <div 
+                  style={{
+                    padding: '12px',
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                  }}
+                >
+                  <BarChart3 className="w-6 h-6 text-white" />
                 </div>
-                <div className="p-2 bg-blue-50 rounded-full">
-                  <DollarSign className="w-5 h-5 text-blue-600" />
+                <span 
+                  style={{
+                    fontSize: '1rem',
+                    color: '#64748b',
+                    fontWeight: '500'
+                  }}
+                >
+                  Financial Performance
+                </span>
+              </div>
+            </div>
+
+            {/* Enhanced Revenue Metrics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div 
+                style={{
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  borderRadius: '20px',
+                  padding: '24px',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p 
+                      style={{
+                        fontSize: '0.875rem',
+                        color: '#64748b',
+                        fontWeight: '500',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      Monthly Revenue
+                    </p>
+                    <p 
+                      style={{
+                        fontSize: '2rem',
+                        fontWeight: '800',
+                        color: '#1d4ed8',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      $13,200
+                    </p>
+                    <p 
+                      style={{
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        color: '#10b981',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      +6.1% vs last month
+                    </p>
+                  </div>
+                  <div 
+                    style={{
+                      padding: '16px',
+                      borderRadius: '16px',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      boxShadow: '0 8px 24px rgba(59, 130, 246, 0.3)'
+                    }}
+                  >
+                    <DollarSign className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              <div 
+                style={{
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  borderRadius: '20px',
+                  padding: '24px',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p 
+                      style={{
+                        fontSize: '0.875rem',
+                        color: '#64748b',
+                        fontWeight: '500',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      Profit Margin
+                    </p>
+                    <p 
+                      style={{
+                        fontSize: '2rem',
+                        fontWeight: '800',
+                        color: '#059669',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      68.2%
+                    </p>
+                    <p 
+                      style={{
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        color: '#10b981',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      +2.4% vs last month
+                    </p>
+                  </div>
+                  <div 
+                    style={{
+                      padding: '16px',
+                      borderRadius: '16px',
+                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                      boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
+                    }}
+                  >
+                    <TrendingUp className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              <div 
+                style={{
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.05) 100%)',
+                  border: '1px solid rgba(139, 92, 246, 0.2)',
+                  borderRadius: '20px',
+                  padding: '24px',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p 
+                      style={{
+                        fontSize: '0.875rem',
+                        color: '#64748b',
+                        fontWeight: '500',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      Average Order Value
+                    </p>
+                    <p 
+                      style={{
+                        fontSize: '2rem',
+                        fontWeight: '800',
+                        color: '#7c3aed',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      $285
+                    </p>
+                    <p 
+                      style={{
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        color: '#10b981',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      +12.5% vs last month
+                    </p>
+                  </div>
+                  <div 
+                    style={{
+                      padding: '16px',
+                      borderRadius: '16px',
+                      background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                      boxShadow: '0 8px 24px rgba(139, 92, 246, 0.3)'
+                    }}
+                  >
+                    <BarChart3 className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+              </div>
+
+              <div 
+                style={{
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)',
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  borderRadius: '20px',
+                  padding: '24px',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p 
+                      style={{
+                        fontSize: '0.875rem',
+                        color: '#64748b',
+                        fontWeight: '500',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      Total Orders
+                    </p>
+                    <p 
+                      style={{
+                        fontSize: '2rem',
+                        fontWeight: '800',
+                        color: '#d97706',
+                        marginBottom: '8px'
+                      }}
+                    >
+                      46
+                    </p>
+                    <p 
+                      style={{
+                        fontSize: '0.875rem',
+                        fontWeight: '600',
+                        color: '#ef4444',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <div style={{ transform: 'rotate(180deg)' }}><TrendingUp className="w-4 h-4" /></div>
+                      -3.2% vs last month
+                    </p>
+                  </div>
+                  <div 
+                    style={{
+                      padding: '16px',
+                      borderRadius: '16px',
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      boxShadow: '0 8px 24px rgba(245, 158, 11, 0.3)'
+                    }}
+                  >
+                    <FileText className="w-8 h-8 text-white" />
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-content p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Profit Margin</p>
-                  <p className="text-2xl font-bold text-green-600">68.2%</p>
-                  <p className="text-sm text-green-600">+2.4% vs last month</p>
-                </div>
-                <div className="p-2 bg-green-50 rounded-full">
-                  <TrendingUp className="w-5 h-5 text-green-600" />
-                </div>
-              </div>
+          {/* Enhanced Monthly Revenue Trend */}
+          <div 
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '24px',
+              padding: '32px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <div className="mb-8">
+              <h3 
+                style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  color: '#1e293b',
+                  marginBottom: '8px'
+                }}
+              >
+                Monthly Revenue Trend
+              </h3>
+              <p 
+                style={{
+                  color: '#64748b',
+                  fontSize: '1rem'
+                }}
+              >
+                Revenue, expenses, and profit over the last 7 months
+              </p>
             </div>
-          </div>
-
-          <div className="card">
-            <div className="card-content p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Average Order Value</p>
-                  <p className="text-2xl font-bold text-purple-600">$285</p>
-                  <p className="text-sm text-green-600">+12.5% vs last month</p>
-                </div>
-                <div className="p-2 bg-purple-50 rounded-full">
-                  <BarChart3 className="w-5 h-5 text-purple-600" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="card-content p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Orders</p>
-                  <p className="text-2xl font-bold text-orange-600">46</p>
-                  <p className="text-sm text-red-600">-3.2% vs last month</p>
-                </div>
-                <div className="p-2 bg-orange-50 rounded-full">
-                  <FileText className="w-5 h-5 text-orange-600" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Monthly Revenue Trend */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Monthly Revenue Trend</h3>
-            <p className="card-description">Revenue, expenses, and profit over the last 7 months</p>
-          </div>
-          <div className="card-content">
             <div className="chart-height-lg">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={monthlyRevenueData}>
@@ -491,7 +1114,8 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
                     contentStyle={{ 
                       backgroundColor: '#ffffff',
                       border: '1px solid #e2e8f0',
-                      borderRadius: '0.5rem'
+                      borderRadius: '0.75rem',
+                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
                     }}
                   />
                   <Legend />
@@ -523,17 +1147,40 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
               </ResponsiveContainer>
             </div>
           </div>
-        </div>
 
-        {/* Revenue Breakdown and Daily Revenue */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Revenue by Service Type */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Revenue by Service Type</h3>
-              <p className="card-description">Breakdown of revenue sources this month</p>
-            </div>
-            <div className="card-content">
+          {/* Enhanced Revenue Breakdown and Daily Revenue */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Revenue by Service Type */}
+            <div 
+              style={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                borderRadius: '24px',
+                padding: '32px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              <div className="mb-6">
+                <h3 
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    color: '#1e293b',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Revenue by Service Type
+                </h3>
+                <p 
+                  style={{
+                    color: '#64748b',
+                    fontSize: '1rem'
+                  }}
+                >
+                  Breakdown of revenue sources this month
+                </p>
+              </div>
               <div className="chart-height-md">
                 <ResponsiveContainer width="100%" height="100%">
                   <RechartsPieChart>
@@ -556,36 +1203,80 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
                       contentStyle={{ 
                         backgroundColor: '#ffffff',
                         border: '1px solid #e2e8f0',
-                        borderRadius: '0.5rem'
+                        borderRadius: '0.75rem',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
                       }}
                     />
                   </RechartsPieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="mt-4 space-y-2">
+              <div className="mt-6 space-y-3">
                 {revenueByServiceData.map((item, index) => (
-                  <div key={item.name} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-2">
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
                       <div 
-                        className="w-3 h-3 rounded-full" 
-                        style={{ backgroundColor: COLORS[index] }}
+                        style={{
+                          width: '12px',
+                          height: '12px',
+                          borderRadius: '50%',
+                          backgroundColor: COLORS[index],
+                          boxShadow: `0 2px 4px ${COLORS[index]}40`
+                        }}
                       />
-                      <span>{item.name}</span>
+                      <span 
+                        style={{
+                          fontSize: '0.9rem',
+                          color: '#374151',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {item.name}
+                      </span>
                     </div>
-                    <span className="font-medium">${item.value.toLocaleString()}</span>
+                    <span 
+                      style={{
+                        fontWeight: '600',
+                        color: '#1e293b'
+                      }}
+                    >
+                      ${item.value.toLocaleString()}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
 
-          {/* Daily Revenue This Month */}
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Daily Revenue - January</h3>
-              <p className="card-description">Daily revenue breakdown for current month</p>
-            </div>
-            <div className="card-content">
+            {/* Daily Revenue This Month */}
+            <div 
+              style={{
+                background: 'rgba(255, 255, 255, 0.95)',
+                backdropFilter: 'blur(20px)',
+                borderRadius: '24px',
+                padding: '32px',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+              }}
+            >
+              <div className="mb-6">
+                <h3 
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    color: '#1e293b',
+                    marginBottom: '8px'
+                  }}
+                >
+                  Daily Revenue - January
+                </h3>
+                <p 
+                  style={{
+                    color: '#64748b',
+                    fontSize: '1rem'
+                  }}
+                >
+                  Daily revenue breakdown for current month
+                </p>
+              </div>
               <div className="chart-height-md">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={dailyRevenueData}>
@@ -607,7 +1298,8 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
                       contentStyle={{ 
                         backgroundColor: '#ffffff',
                         border: '1px solid #e2e8f0',
-                        borderRadius: '0.5rem'
+                        borderRadius: '0.75rem',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
                       }}
                     />
                     <Area
@@ -623,7 +1315,6 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
               </div>
             </div>
           </div>
-        </div>
 
         {/* Revenue vs Expenses Comparison */}
         <div className="card">
@@ -998,61 +1689,222 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
           </div>
         </div>
 
-        {/* Performance Overview */}
+        {/* Professional Performance Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Student Performance</h3>
-            </div>
-            <div className="card-content">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Average Grade</span>
-                  <span className="font-medium">A-</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Completion Rate</span>
-                  <span className="font-medium">94%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">On-Time Delivery</span>
-                  <span className="font-medium">87%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm">Student Satisfaction</span>
-                  <span className="font-medium">4.8/5</span>
-                </div>
+          <div 
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '24px',
+              padding: '32px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <h3 
+              style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#1e293b',
+                marginBottom: '24px'
+              }}
+            >
+              Student Performance
+            </h3>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <span 
+                  style={{
+                    fontSize: '1rem',
+                    color: '#64748b',
+                    fontWeight: '500'
+                  }}
+                >
+                  Average Grade
+                </span>
+                <span 
+                  style={{
+                    fontWeight: '700',
+                    fontSize: '1.125rem',
+                    color: '#10b981'
+                  }}
+                >
+                  A-
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span 
+                  style={{
+                    fontSize: '1rem',
+                    color: '#64748b',
+                    fontWeight: '500'
+                  }}
+                >
+                  Completion Rate
+                </span>
+                <span 
+                  style={{
+                    fontWeight: '700',
+                    fontSize: '1.125rem',
+                    color: '#3b82f6'
+                  }}
+                >
+                  94%
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span 
+                  style={{
+                    fontSize: '1rem',
+                    color: '#64748b',
+                    fontWeight: '500'
+                  }}
+                >
+                  On-Time Delivery
+                </span>
+                <span 
+                  style={{
+                    fontWeight: '700',
+                    fontSize: '1.125rem',
+                    color: '#8b5cf6'
+                  }}
+                >
+                  87%
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span 
+                  style={{
+                    fontSize: '1rem',
+                    color: '#64748b',
+                    fontWeight: '500'
+                  }}
+                >
+                  Student Satisfaction
+                </span>
+                <span 
+                  style={{
+                    fontWeight: '700',
+                    fontSize: '1.125rem',
+                    color: '#f59e0b'
+                  }}
+                >
+                  4.8/5
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Recent Achievements</h3>
-            </div>
-            <div className="card-content">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span className="text-sm">10 projects completed this week</span>
+          <div 
+            style={{
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              borderRadius: '24px',
+              padding: '32px',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+            }}
+          >
+            <h3 
+              style={{
+                fontSize: '1.5rem',
+                fontWeight: '700',
+                color: '#1e293b',
+                marginBottom: '24px'
+              }}
+            >
+              Recent Achievements
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-4">
+                <div 
+                  style={{
+                    padding: '8px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  <CheckCircle className="w-5 h-5 text-white" />
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Star className="w-5 h-5 text-yellow-500" />
-                  <span className="text-sm">3 new 5-star reviews received</span>
+                <span 
+                  style={{
+                    fontSize: '1rem',
+                    color: '#374151',
+                    fontWeight: '500'
+                  }}
+                >
+                  10 projects completed this week
+                </span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div 
+                  style={{
+                    padding: '8px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)',
+                    boxShadow: '0 4px 12px rgba(234, 179, 8, 0.3)'
+                  }}
+                >
+                  <Star className="w-5 h-5 text-white" />
                 </div>
-                <div className="flex items-center space-x-3">
-                  <TrendingUp className="w-5 h-5 text-blue-500" />
-                  <span className="text-sm">Revenue increased by 18%</span>
+                <span 
+                  style={{
+                    fontSize: '1rem',
+                    color: '#374151',
+                    fontWeight: '500'
+                  }}
+                >
+                  3 new 5-star reviews received
+                </span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div 
+                  style={{
+                    padding: '8px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                  }}
+                >
+                  <TrendingUp className="w-5 h-5 text-white" />
                 </div>
-                <div className="flex items-center space-x-3">
-                  <Users className="w-5 h-5 text-purple-500" />
-                  <span className="text-sm">12 new students joined</span>
+                <span 
+                  style={{
+                    fontSize: '1rem',
+                    color: '#374151',
+                    fontWeight: '500'
+                  }}
+                >
+                  Revenue increased by 18%
+                </span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div 
+                  style={{
+                    padding: '8px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
+                  }}
+                >
+                  <Users className="w-5 h-5 text-white" />
                 </div>
+                <span 
+                  style={{
+                    fontSize: '1rem',
+                    color: '#374151',
+                    fontWeight: '500'
+                  }}
+                >
+                  12 new students joined
+                </span>
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
       {/* Add Bill Modal */}
       {showBillModal && selectedTask && (

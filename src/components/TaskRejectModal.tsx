@@ -5,7 +5,11 @@ import { toast } from "sonner";
 interface Task {
   id: string;
   title: string;
-  student: string;
+  student: {
+    id: string;
+    name: string;
+    email: string;
+  };
 }
 
 interface TaskRejectModalProps {
@@ -99,7 +103,7 @@ export function TaskRejectModal({ task, isOpen, onClose, onReject }: TaskRejectM
               {task.title}
             </h3>
             <p style={{ fontSize: '0.875rem', color: '#7f1d1d', margin: 0 }}>
-              Submitted by: {task.student}
+              Submitted by: {task.student.name}
             </p>
           </div>
         </div>

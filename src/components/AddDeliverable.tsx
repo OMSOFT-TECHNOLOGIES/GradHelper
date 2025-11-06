@@ -7,8 +7,11 @@ import {
   X,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
+import { taskService } from '../services/taskService';
+import { toast } from "sonner";
 
 interface AddDeliverableProps {
   taskId: string;
@@ -29,23 +32,59 @@ export function AddDeliverable({ taskId, taskTitle, onClose, onAdd }: AddDeliver
   });
 
   const [dragActive, setDragActive] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const newDeliverable = {
-      id: Date.now(),
-      taskId,
-      taskTitle,
-      ...formData,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      submittedAt: null,
-      feedback: null
-    };
+    // Validation
+    if (!formData.title.trim() || !formData.description.trim() || !formData.dueDate) {
+      toast.error('Missing required fields', {
+        description: 'Please fill in title, description, and due date'
+      });
+      return;
+    }
 
-    onAdd(newDeliverable);
-    onClose();
+    setIsSubmitting(true);
+    
+    try {
+      // Show loading toast
+      toast.loading('Adding deliverable...', { id: 'add-deliverable' });
+
+      const response = await taskService.addDeliverable(taskId, {
+        title: formData.title,
+        description: formData.description,
+        dueDate: formData.dueDate,
+        priority: formData.priority,
+        estimatedHours: formData.estimatedHours,
+        requirements: formData.requirements,
+        files: formData.files,
+      });
+
+      if (response.success) {
+        toast.success('Deliverable added successfully!', {
+          id: 'add-deliverable',
+          description: `"${formData.title}" has been added to the task.`
+        });
+        
+        // Call the parent callback with the new deliverable
+        onAdd(response.data);
+        onClose();
+      } else {
+        throw new Error('Failed to add deliverable');
+      }
+    } catch (error) {
+      console.error('Error adding deliverable:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add deliverable';
+      
+      toast.error('Failed to add deliverable', {
+        id: 'add-deliverable',
+        description: errorMessage
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -247,12 +286,30 @@ export function AddDeliverable({ taskId, taskTitle, onClose, onAdd }: AddDeliver
           </div>
 
           <div className="form-actions">
-            <button type="button" className="btn btn-outline" onClick={onClose}>
+            <button 
+              type="button" 
+              className="btn btn-outline" 
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Deliverable
+            <button 
+              type="submit" 
+              className="btn btn-primary"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Deliverable
+                </>
+              )}
             </button>
           </div>
         </form>
