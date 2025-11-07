@@ -208,8 +208,9 @@ class TaskService {
    * PUT /tasks/{taskId}
    */
   async updateTask(taskId: string, updates: Partial<Task>): Promise<{ success: boolean; data: Task }> {
+    console.log('Updating task with data:', updates);
     try {
-      const response = await this.makeRequest<{ success: boolean; data: Task }>(`/tasks/${taskId}`, {
+      const response = await this.makeRequest<{ success: boolean; data: Task }>(`/tasks/${taskId}/`, {
         method: 'PUT',
         body: JSON.stringify(updates),
       });
@@ -248,7 +249,7 @@ class TaskService {
    */
   async deleteTask(taskId: string, reason?: string): Promise<{ success: boolean }> {
     try {
-      const response = await this.makeRequest<{ success: boolean }>(`/tasks/${taskId}`, {
+      const response = await this.makeRequest<{ success: boolean }>(`/tasks/${taskId}/`, {
         method: 'DELETE',
         body: JSON.stringify({ reason }),
       });

@@ -22,6 +22,7 @@ import {
   Edit,
   Trash2,
   XCircle,
+  X,
   RefreshCw,
   Loader2,
   Download,
@@ -34,7 +35,8 @@ import {
   Award,
   BookOpen,
   GraduationCap,
-  Target
+  Target,
+  Save
 } from 'lucide-react';
 import { toast } from "sonner";
 
@@ -51,6 +53,49 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  
+  // Edit and Delete modal states
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showFileDeleteModal, setShowFileDeleteModal] = useState(false);
+  const [showFileStagingModal, setShowFileStagingModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [deletingFile, setDeletingFile] = useState<{
+    taskId: string;
+    attachmentId: string;
+    fileName: string;
+    context: string;
+    type: 'task' | 'deliverable';
+    deliverableId?: string;
+  } | null>(null);
+  const [stagingFile, setStagingFile] = useState<{
+    fileId: string;
+    fileName: string;
+    context: string;
+  } | null>(null);
+  
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    title: '',
+    description: '',
+    subject: '',
+    dueDate: '',
+    priority: 'medium' as 'low' | 'medium' | 'high',
+    budget: 0,
+    requirements: '',
+    academicLevel: '',
+    pages: 0,
+    citations: '',
+    type: ''
+  });
+
+  // File handling state for edit modal
+  const [editFiles, setEditFiles] = useState<File[]>([]);
+  const [editExistingFiles, setEditExistingFiles] = useState<any[]>([]);
+  const [filesToRemove, setFilesToRemove] = useState<string[]>([]);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use the custom hook for task management
   const {
@@ -100,6 +145,270 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     });
   };
 
+  // Handle edit task
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task);
+    setEditForm({
+      title: task.title || '',
+      description: task.description || '',
+      subject: task.subject || '',
+      dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : '',
+      priority: task.priority || 'medium',
+      budget: task.budget || 0,
+      requirements: task.requirements || '',
+      academicLevel: task.academicLevel || '',
+      pages: task.pages || 0,
+      citations: task.citations || '',
+      type: task.type || ''
+    });
+    
+    // Initialize file states
+    setEditFiles([]);
+    setEditExistingFiles(task.attachments || []);
+    setFilesToRemove([]);
+    
+    setShowEditModal(true);
+    setOpenMenuId(null);
+  };
+
+  // File handling functions for edit modal
+  const handleEditFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const newFiles = Array.from(files);
+      setEditFiles(prev => [...prev, ...newFiles]);
+      
+      // Clear the input value so the same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      
+      toast.success(`${newFiles.length} file(s) added`);
+    }
+  };
+
+  const handleRemoveEditFile = (index: number) => {
+    setEditFiles(prev => prev.filter((_, i) => i !== index));
+    toast.success('File removed');
+  };
+
+  const handleRemoveExistingFile = (fileId: string, fileName: string) => {
+    // Show professional confirmation modal for staging file removal
+    setStagingFile({
+      fileId,
+      fileName,
+      context: 'task'
+    });
+    setShowFileStagingModal(true);
+  };
+
+  // Confirm file staging for removal
+  const handleConfirmFileStaging = () => {
+    if (!stagingFile) return;
+
+    setFilesToRemove(prev => [...prev, stagingFile.fileId]);
+    setEditExistingFiles(prev => prev.filter(f => f.id !== stagingFile.fileId));
+    setShowFileStagingModal(false);
+    setStagingFile(null);
+    
+    toast.success(`${stagingFile.fileName} will be removed when you save`);
+  };
+
+  // Update task
+  const handleUpdateTask = async () => {
+    if (!editingTask) return;
+
+    try {
+      setUpdateLoading(true);
+
+      // Get auth token from localStorage
+      const token = localStorage.getItem('gradhelper_token');
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+
+      let response;
+
+      // Use FormData when files are present, JSON when no files (like PostTask)
+      if (editFiles.length > 0 || filesToRemove.length > 0) {
+        const formData = new FormData();
+        
+        // Add all basic form fields
+        formData.append('title', editForm.title);
+        formData.append('description', editForm.description);
+        formData.append('subject', editForm.subject);
+        formData.append('dueDate', editForm.dueDate ? new Date(editForm.dueDate).toISOString() : editingTask.dueDate);
+        formData.append('priority', editForm.priority);
+        formData.append('budget', editForm.budget.toString());
+        
+        if (editForm.requirements) formData.append('requirements', editForm.requirements);
+        if (editForm.academicLevel) formData.append('academicLevel', editForm.academicLevel);
+        if (editForm.pages) formData.append('pages', editForm.pages.toString());
+        if (editForm.citations) formData.append('citations', editForm.citations);
+        if (editForm.type) formData.append('type', editForm.type);
+        
+        // Add remaining existing files (not removed) as JSON
+        const remainingFiles = editExistingFiles.filter(f => !filesToRemove.includes(f.id));
+        if (remainingFiles.length > 0) {
+          formData.append('existingAttachments', JSON.stringify(remainingFiles));
+        }
+        
+        // Add files to remove as JSON
+        if (filesToRemove.length > 0) {
+          formData.append('removeAttachments', JSON.stringify(filesToRemove));
+        }
+        
+        // Add new files - this matches the API expectation from PostTask
+        editFiles.forEach((file) => {
+          formData.append('attachments', file);
+        });
+        
+        console.log('Updating task with FormData (files present)');
+        
+        response = await fetch(`${API_BASE_URL}/tasks/${editingTask.id}/`, {
+          method: 'PUT',
+          headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+            // Don't set Content-Type for FormData - browser sets it with boundary
+          },
+          body: formData,
+        });
+      } else {
+        // No file changes, use JSON (like PostTask)
+        const taskData = {
+          ...editForm,
+          dueDate: editForm.dueDate ? new Date(editForm.dueDate).toISOString() : editingTask.dueDate,
+          updatedAt: new Date().toISOString()
+        };
+        
+        console.log('Updating task with JSON (no file changes)');
+        console.log('Task data:', taskData);
+        
+        response = await fetch(`${API_BASE_URL}/tasks/${editingTask.id}/`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` }),
+          },
+          body: JSON.stringify(taskData),
+        });
+      }
+
+      // Check if response is JSON or HTML (like PostTask error handling)
+      let result;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        // Server returned HTML (likely an error page)
+        const htmlText = await response.text();
+        console.error('Server returned HTML instead of JSON:', htmlText);
+        result = { 
+          error: 'Server error - received HTML response instead of JSON',
+          html_content: htmlText.substring(0, 200) + '...'
+        };
+      }
+      
+      console.log('Update API Response:', response.status, result);
+
+      if (response.ok) {
+        // Update local state with the response data or optimistically update
+        const updatedTask = result.data || {
+          ...editingTask,
+          ...editForm,
+          dueDate: editForm.dueDate ? new Date(editForm.dueDate).toISOString() : editingTask.dueDate,
+          updatedAt: new Date().toISOString(),
+          // Update attachments if file changes were made
+          ...(editFiles.length > 0 || filesToRemove.length > 0 ? {
+            attachments: [
+              ...editExistingFiles.filter(f => !filesToRemove.includes(f.id)),
+              ...editFiles.map((file, index) => ({
+                id: `new_${Date.now()}_${index}`,
+                name: file.name,
+                size: formatFileSize(file.size),
+                type: file.type,
+                url: URL.createObjectURL(file),
+                uploadedAt: new Date().toISOString()
+              }))
+            ]
+          } : {})
+        };
+
+        // Refresh tasks to get updated data from server
+        await refreshTasks();
+        
+        setShowEditModal(false);
+        setEditingTask(null);
+        setEditFiles([]);
+        setEditExistingFiles([]);
+        setFilesToRemove([]);
+        
+        toast.success('Task updated successfully', {
+          description: `Updated task${editFiles.length > 0 ? ` with ${editFiles.length} new files` : ''}${filesToRemove.length > 0 ? ` and removed ${filesToRemove.length} files` : ''}`
+        });
+      } else {
+        // Handle API errors with detailed information (like PostTask)
+        console.error('API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: result
+        });
+        
+        let errorMessage = 'Failed to update task';
+        
+        if (result.detail) {
+          errorMessage = result.detail;
+        } else if (result.message) {
+          errorMessage = result.message;
+        } else if (result.error) {
+          errorMessage = result.error;
+        } else if (typeof result === 'object') {
+          // Handle field-specific errors
+          const fieldErrors = Object.entries(result)
+            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+            .join('; ');
+          if (fieldErrors) errorMessage = fieldErrors;
+        }
+        
+        toast.error(`Update failed (${response.status})`, {
+          description: errorMessage
+        });
+      }
+      
+    } catch (error) {
+      console.error('Task update error:', error);
+      toast.error('Network error', {
+        description: 'Unable to connect to the server. Please check your connection and try again.'
+      });
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
+  // Handle delete task
+  const handleDeleteTask = (task: Task) => {
+    setDeletingTask(task);
+    setShowDeleteModal(true);
+    setOpenMenuId(null);
+  };
+
+  // Confirm delete task
+  const handleConfirmDelete = async () => {
+    if (!deletingTask) return;
+
+    try {
+      await deleteTask(deletingTask.id);
+      
+      setShowDeleteModal(false);
+      setDeletingTask(null);
+      
+      toast.success('Task deleted successfully');
+      
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('Failed to delete task');
+    }
+  };
+
   const handleViewDetails = (task: Task) => {
     setSelectedTask(task);
     setShowTaskDetail(true);
@@ -140,21 +449,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     setOpenMenuId(null);
   };
 
-  const handleEditTask = (task: Task) => {
-    toast.info('Edit functionality coming soon');
-    setOpenMenuId(null);
-  };
 
-  const handleDeleteTask = async (task: Task) => {
-    if (window.confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
-      try {
-        await deleteTask(task.id, 'Deleted by user');
-      } catch (error) {
-        console.error('Error deleting task:', error);
-      }
-    }
-    setOpenMenuId(null);
-  };
 
   const handleMarkComplete = async (task: Task) => {
     if (task.status === 'completed') {
@@ -224,6 +519,99 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
         description: 'Please check your connection and try again.',
       });
     }
+  };
+
+  // Direct file removal handler - removes file immediately via API
+  const handleRemoveFileDirectly = (taskId: string, attachmentId: string, fileName: string) => {
+    // Show professional confirmation modal
+    setDeletingFile({
+      taskId,
+      attachmentId,
+      fileName,
+      context: 'task attachment',
+      type: 'task'
+    });
+    setShowFileDeleteModal(true);
+  };
+
+  // Confirm file deletion and execute removal
+  const handleConfirmFileDelete = async () => {
+    if (!deletingFile) return;
+
+    try {
+      const token = localStorage.getItem('gradhelper_token');
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+
+      let apiUrl;
+      if (deletingFile.type === 'task') {
+        apiUrl = `${API_BASE_URL}/tasks/${deletingFile.taskId}/attachments/${deletingFile.attachmentId}/remove/`;
+      } else {
+        apiUrl = `${API_BASE_URL}/tasks/${deletingFile.taskId}/deliverables/${deletingFile.deliverableId}/attachments/${deletingFile.attachmentId}/remove/`;
+      }
+
+      const response = await fetch(apiUrl, {
+        method: 'DELETE',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+      });
+
+      if (response.ok) {
+        // Refresh tasks to get updated data from server
+        await refreshTasks();
+        
+        // Close modal and reset state
+        setShowFileDeleteModal(false);
+        setDeletingFile(null);
+        
+        toast.success(`File removed successfully`, {
+          description: `"${deletingFile.fileName}" has been deleted from the ${deletingFile.context}.`,
+        });
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorData
+        });
+        
+        let errorMessage = 'Failed to remove file';
+        if (errorData.detail) {
+          errorMessage = errorData.detail;
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+        
+        toast.error(`Remove failed (${response.status})`, {
+          description: errorMessage
+        });
+      }
+    } catch (error) {
+      console.error('File removal error:', error);
+      toast.error('Network error', {
+        description: 'Unable to connect to the server. Please check your connection and try again.'
+      });
+    } finally {
+      // Close modal and reset state on any completion
+      setShowFileDeleteModal(false);
+      setDeletingFile(null);
+    }
+  };
+
+  // Direct deliverable file removal handler
+  const handleRemoveDeliverableFileDirectly = (taskId: string, deliverableId: string, attachmentId: string, fileName: string) => {
+    // Show professional confirmation modal
+    setDeletingFile({
+      taskId,
+      attachmentId,
+      fileName,
+      context: 'deliverable file',
+      type: 'deliverable',
+      deliverableId
+    });
+    setShowFileDeleteModal(true);
   };
 
   // Enhanced file preview handler
@@ -365,11 +753,11 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                 onChange={(e) => handleStatusFilterChange(e.target.value)}
               >
                 <option value="all">All Status</option>
-                <option value="pending">📋 Pending</option>
-                <option value="in_progress">⚡ In Progress</option>
-                <option value="completed">✅ Completed</option>
-                <option value="revision_needed">🔄 Needs Revision</option>
-                <option value="rejected">❌ Rejected</option>
+                <option value="pending"> Pending</option>
+                <option value="in_progress"> In Progress</option>
+                <option value="completed"> Completed</option>
+                <option value="revision_needed"> Needs Revision</option>
+                <option value="rejected"> Rejected</option>
               </select>
             </div>
 
@@ -595,16 +983,6 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                                   <span>Contact Admin</span>
                                 </button>
                                 
-                                {task.status !== 'completed' && task.status !== 'rejected' && (
-                                  <button 
-                                    className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center space-x-2"
-                                    onClick={() => handleMarkComplete(task)}
-                                  >
-                                    <CheckCircle className="w-4 h-4" />
-                                    <span>Mark Complete</span>
-                                  </button>
-                                )}
-                                
                                 <button 
                                   className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
                                   onClick={() => handleEditTask(task)}
@@ -612,6 +990,16 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                                   <Edit className="w-4 h-4" />
                                   <span>Edit Task</span>
                                 </button>
+                                
+                                {task.status === 'pending' && (
+                                  <button 
+                                    className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center space-x-2"
+                                    onClick={() => handleDeleteTask(task)}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    <span>Delete Task</span>
+                                  </button>
+                                )}
                               </>
                             )}
                           </div>
@@ -666,6 +1054,13 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                                 <ExternalLink className="w-4 h-4" />
                               </button>
                             )}
+                            <button
+                              onClick={() => handleRemoveFileDirectly(task.id, file.id, file.name)}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all duration-200 file-action-btn remove"
+                              title="Remove file"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
                       ))}
@@ -753,6 +1148,13 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                                             <ExternalLink className="w-3.5 h-3.5" />
                                           </button>
                                         )}
+                                        <button
+                                          onClick={() => handleRemoveDeliverableFileDirectly(task.id, deliverable.id, file.id, file.name)}
+                                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all duration-200 file-action-btn remove"
+                                          title="Remove file"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
                                       </div>
                                     </div>
                                   ))}
@@ -818,6 +1220,536 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
           }}
           onReject={handleTaskRejection}
         />
+      )}
+
+      {/* Professional Edit Task Modal */}
+      {showEditModal && editingTask && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Edit className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Edit Task</h3>
+                  <p className="text-sm text-slate-600">Update task details and requirements</p>
+                </div>
+              </div>
+              <button 
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
+                onClick={() => setShowEditModal(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Task Title</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter task title"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Subject</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={editForm.subject}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, subject: e.target.value }))}
+                    placeholder="Enter subject"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+                <textarea
+                  className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                  rows={4}
+                  value={editForm.description}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter task description"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Due Date</label>
+                  <input
+                    type="date"
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={editForm.dueDate}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, dueDate: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Priority</label>
+                  <select
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={editForm.priority}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, priority: e.target.value as 'low' | 'medium' | 'high' }))}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Budget ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={editForm.budget}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, budget: parseFloat(e.target.value) || 0 }))}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Task Type</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={editForm.type}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, type: e.target.value }))}
+                    placeholder="e.g., Essay, Research Paper"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Academic Level</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={editForm.academicLevel}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, academicLevel: e.target.value }))}
+                    placeholder="e.g., Undergraduate, Masters"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Pages</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={editForm.pages}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, pages: parseInt(e.target.value) || 0 }))}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Requirements</label>
+                  <textarea
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                    rows={3}
+                    value={editForm.requirements}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, requirements: e.target.value }))}
+                    placeholder="Enter specific requirements"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">Citations Style</label>
+                  <input
+                    type="text"
+                    className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={editForm.citations}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, citations: e.target.value }))}
+                    placeholder="e.g., APA, MLA, Chicago"
+                  />
+                </div>
+              </div>
+
+              {/* File Management Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-700">Task Files</label>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center space-x-2 px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Files</span>
+                  </button>
+                </div>
+
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleEditFileSelect}
+                  accept="*/*"
+                />
+
+                {/* Existing Files */}
+                {editExistingFiles.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-slate-600">Current Files</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {editExistingFiles.map((file) => (
+                        <div key={file.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-slate-200 rounded-lg">
+                              <FileText className="w-4 h-4 text-slate-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{file.name}</p>
+                              <p className="text-xs text-slate-500">{file.size || 'Unknown size'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            {file.url && (
+                              <button
+                                type="button"
+                                onClick={() => window.open(file.url, '_blank')}
+                                className="p-1 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded transition-all"
+                                title="Preview file"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveExistingFile(file.id, file.name)}
+                              className="p-1 text-slate-500 hover:text-red-600 hover:bg-red-100 rounded transition-all"
+                              title="Remove file"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* New Files */}
+                {editFiles.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-sm font-medium text-slate-600">New Files to Add</h4>
+                    <div className="grid grid-cols-1 gap-2">
+                      {editFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                          <div className="flex items-center space-x-3">
+                            <div className="p-2 bg-green-200 rounded-lg">
+                              <FileText className="w-4 h-4 text-green-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{file.name}</p>
+                              <p className="text-xs text-slate-500">{formatFileSize(file.size)}</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveEditFile(index)}
+                            className="p-1 text-slate-500 hover:text-red-600 hover:bg-red-100 rounded transition-all"
+                            title="Remove file"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* File Summary */}
+                {(editFiles.length > 0 || filesToRemove.length > 0) && (
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center space-x-2 text-sm text-blue-700">
+                      <FileText className="w-4 h-4" />
+                      <span>
+                        {editFiles.length > 0 && `${editFiles.length} new file(s) will be added`}
+                        {editFiles.length > 0 && filesToRemove.length > 0 && ', '}
+                        {filesToRemove.length > 0 && `${filesToRemove.length} file(s) will be removed`}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-slate-200 bg-slate-50">
+              <button 
+                className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-all"
+                onClick={() => setShowEditModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all disabled:opacity-50"
+                onClick={handleUpdateTask}
+                disabled={updateLoading || !editForm.title.trim()}
+              >
+                {updateLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                <span>Update Task</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Professional Delete Task Modal */}
+      {showDeleteModal && deletingTask && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Delete Task</h3>
+                  <p className="text-sm text-slate-600">This action cannot be undone</p>
+                </div>
+              </div>
+              <button 
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center space-x-3 p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">
+                    Are you sure you want to delete this task?
+                  </p>
+                  <p className="text-sm text-red-600 mt-1">
+                    "{deletingTask.title}" and all its deliverables will be permanently removed.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="p-2 bg-slate-200 rounded-lg">
+                    <FileText className="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-medium text-slate-900">{deletingTask.title}</h4>
+                    <p className="text-sm text-slate-600 mt-1">{deletingTask.subject}</p>
+                    <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500">
+                      <span>Due: {new Date(deletingTask.dueDate).toLocaleDateString()}</span>
+                      <span>${deletingTask.budget}</span>
+                      <span>{deletingTask.deliverables?.length || 0} deliverables</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-slate-200 bg-slate-50">
+              <button 
+                className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-all"
+                onClick={() => setShowDeleteModal(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:opacity-50"
+                onClick={handleConfirmDelete}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                <span>Delete Task</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Professional File Delete Modal */}
+      {showFileDeleteModal && deletingFile && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Delete File</h3>
+                  <p className="text-sm text-slate-600">This action cannot be undone</p>
+                </div>
+              </div>
+              <button 
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
+                onClick={() => {
+                  setShowFileDeleteModal(false);
+                  setDeletingFile(null);
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center space-x-3 p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">
+                    Are you sure you want to delete this file?
+                  </p>
+                  <p className="text-sm text-red-600 mt-1">
+                    "{deletingFile.fileName}" will be permanently removed from the {deletingFile.context}.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="p-2 bg-slate-200 rounded-lg">
+                    <FileText className="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-medium text-slate-900">{deletingFile.fileName}</h4>
+                    <p className="text-sm text-slate-600 mt-1">
+                      {deletingFile.type === 'task' ? 'Task Attachment' : 'Deliverable File'}
+                    </p>
+                    <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500">
+                      <span>Context: {deletingFile.context}</span>
+                      <span>Type: {deletingFile.type}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-slate-200 bg-slate-50">
+              <button 
+                className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-all"
+                onClick={() => {
+                  setShowFileDeleteModal(false);
+                  setDeletingFile(null);
+                  toast.info('File deletion cancelled', {
+                    description: `"${deletingFile.fileName}" was not deleted.`
+                  });
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all disabled:opacity-50"
+                onClick={handleConfirmFileDelete}
+                disabled={updateLoading}
+              >
+                {updateLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+                <span>Delete File</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Professional File Staging Modal */}
+      {showFileStagingModal && stagingFile && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-orange-100 rounded-lg">
+                  <FileText className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Stage File for Removal</h3>
+                  <p className="text-sm text-slate-600">File will be deleted when you save</p>
+                </div>
+              </div>
+              <button 
+                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
+                onClick={() => {
+                  setShowFileStagingModal(false);
+                  setStagingFile(null);
+                }}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="flex items-center space-x-3 p-4 bg-orange-50 border border-orange-200 rounded-lg mb-4">
+                <AlertCircle className="w-5 h-5 text-orange-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-orange-800">
+                    Remove "{stagingFile.fileName}" from this task?
+                  </p>
+                  <p className="text-sm text-orange-600 mt-1">
+                    The file will be deleted when you save the task changes.
+                  </p>
+                </div>
+              </div>
+              
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="p-2 bg-slate-200 rounded-lg">
+                    <FileText className="w-4 h-4 text-slate-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-medium text-slate-900">{stagingFile.fileName}</h4>
+                    <p className="text-sm text-slate-600 mt-1">Current task attachment</p>
+                    <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500">
+                      <span>Action: Stage for removal</span>
+                      <span>Context: Edit mode</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-slate-200 bg-slate-50">
+              <button 
+                className="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-all"
+                onClick={() => {
+                  setShowFileStagingModal(false);
+                  setStagingFile(null);
+                  toast.info('File staging cancelled', {
+                    description: `"${stagingFile.fileName}" will remain in the task.`
+                  });
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all"
+                onClick={handleConfirmFileStaging}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Stage for Removal</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

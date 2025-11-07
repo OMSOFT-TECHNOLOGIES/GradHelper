@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   X, 
   Calendar, 
@@ -16,7 +16,31 @@ import {
   MessageSquare,
   Download,
   Edit,
-  Trash2
+  Trash2,
+  Save,
+  Loader2,
+  Eye,
+  Paperclip,
+  Star,
+  TrendingUp,
+  Activity,
+  ChevronRight,
+  ExternalLink,
+  Copy,
+  Share2,
+  Bookmark,
+  Flag,
+  Award,
+  BookOpen,
+  Users,
+  BarChart3,
+  PieChart,
+  Filter,
+  Search,
+  Maximize2,
+  Hash,
+  MessageCircle,
+  Minimize2
 } from 'lucide-react';
 import { toast } from "sonner";
 
@@ -58,6 +82,28 @@ interface TaskDetailModalProps {
 
 export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate }: TaskDetailModalProps) {
   const [activeTab, setActiveTab] = useState('overview');
+  const [loading, setLoading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Close modal on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+    
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -81,22 +127,58 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
     }
   };
 
-  const handleStatusUpdate = (newStatus: string) => {
-    const updatedTask = { ...task, status: newStatus as any };
-    onTaskUpdate(updatedTask);
-    toast.success(`Task status updated to ${newStatus.replace('_', ' ')}`);
+  const handleStatusUpdate = async (newStatus: string) => {
+    setLoading(true);
+    try {
+      const updatedTask = { ...task, status: newStatus as any };
+      onTaskUpdate(updatedTask);
+      toast.success(`Task status updated to ${newStatus.replace('_', ' ')}`, {
+        description: `Task "${task.title}" is now ${newStatus.replace('_', ' ')}.`,
+      });
+    } catch (error) {
+      toast.error('Failed to update task status');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleContactStudent = () => {
-    toast.info('Opening messaging system...');
+    toast.success('Opening communication channel...', {
+      description: `Connecting you with ${task.student.name}`,
+    });
     // This would typically navigate to the messaging system with the student pre-selected
   };
 
+  const handleCopyTaskId = () => {
+    navigator.clipboard.writeText(task.id);
+    toast.success('Task ID copied to clipboard');
+  };
+
+  const handleShareTask = () => {
+    toast.info('Share functionality would open here');
+  };
+
+  const handleBookmarkTask = () => {
+    toast.success('Task bookmarked successfully');
+  };
+
+  // Enhanced functions for better UX
+  const handleDownloadAll = () => {
+    toast.info('Downloading all attachments...');
+  };
+
+  const handleExportTask = () => {
+    toast.info('Exporting task details...');
+  };
+
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: FileText },
-    { id: 'deliverables', label: 'Deliverables', icon: CheckCircle },
-    { id: 'student', label: 'Student Info', icon: User },
-    { id: 'timeline', label: 'Timeline', icon: Clock }
+    { id: 'overview', label: 'Overview', icon: FileText, badge: null },
+    { id: 'deliverables', label: 'Deliverables', icon: CheckCircle, badge: task.deliverables.length },
+    { id: 'attachments', label: 'Files', icon: Paperclip, badge: task.attachments?.length || 0 },
+    { id: 'student', label: 'Student Info', icon: User, badge: null },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: null },
+    { id: 'timeline', label: 'Timeline', icon: Clock, badge: null },
+    { id: 'notes', label: 'Notes', icon: BookOpen, badge: null }
   ];
 
   const mockStudentInfo = {
@@ -115,301 +197,537 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
   ];
 
   return (
-    <div className="add-deliverable-overlay">
-      <div className="add-deliverable-modal" style={{ maxWidth: '1200px' }}>
-        <div className="modal-header">
-          <div className="modal-title-section">
-            <h2>Task Details</h2>
-            <p>Comprehensive view of task information and progress</p>
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-
-        {/* Task Header */}
-        <div style={{ padding: '0 2rem', borderBottom: '1px solid #f1f5f9' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1.5rem', paddingBottom: '1.5rem' }}>
-            <div style={{ flex: 1 }}>
-              <h3 style={{ fontSize: '1.5rem', fontWeight: '600', color: '#1e293b', margin: '0 0 1rem 0' }}>
-                {task.title}
-              </h3>
-              <p style={{ color: '#64748b', marginBottom: '1rem', lineHeight: '1.6' }}>
-                {task.description}
-              </p>
-              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span className={`badge ${getStatusColor(task.status)}`}>
-                  {task.status.replace('_', ' ')}
-                </span>
-                <span className={`priority-badge ${getPriorityColor(task.priority)}`} style={{ padding: '0.25rem 0.75rem', borderRadius: '0.375rem', border: '1px solid', fontSize: '0.75rem', fontWeight: '500' }}>
-                  {task.priority} priority
-                </span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: '#64748b' }}>
-                  <DollarSign className="w-4 h-4" />
-                  <span>${task.budget}</span>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+      <div className="bg-white/95 backdrop-blur-lg rounded-2xl shadow-2xl border border-white/20 w-full max-w-6xl max-h-[95vh] overflow-hidden">
+        {/* Enhanced Header */}
+        <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 p-6">
+          <div className="absolute inset-0 bg-white/10 backdrop-blur-sm"></div>
+          <div className="relative flex items-center justify-between">
+            <div className="flex items-start space-x-4">
+              <div className="p-3 bg-white/20 backdrop-blur-sm rounded-xl border border-white/30">
+                <FileText className="w-7 h-7 text-white" />
+              </div>
+              <div className="text-white">
+                <h2 className="text-2xl font-bold mb-1">{task.title}</h2>
+                <div className="flex items-center space-x-4 text-sm text-white/80">
+                  <span className="flex items-center">
+                    <Hash className="w-4 h-4 mr-1" />
+                    {task.id}
+                  </span>
+                  <span className="flex items-center">
+                    <Calendar className="w-4 h-4 mr-1" />
+                    Due {new Date(task.dueDate).toLocaleDateString()}
+                  </span>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                    {task.priority.toUpperCase()} PRIORITY
+                  </span>
                 </div>
               </div>
             </div>
-
-            {userRole === 'admin' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0 }}>
-                <select
-                  value={task.status}
-                  onChange={(e) => handleStatusUpdate(e.target.value)}
-                  style={{ padding: '0.5rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', fontSize: '0.875rem', minWidth: '150px' }}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                  <option value="revision_needed">Needs Revision</option>
-                  <option value="rejected">Rejected</option>
-                </select>
-                <button 
-                  className="btn btn-outline btn-sm"
-                  onClick={handleContactStudent}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}
-                >
-                  <MessageSquare className="w-4 h-4" />
-                  Contact Student
-                </button>
-              </div>
-            )}
+            
+            {/* Header Actions */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleBookmarkTask}
+                className="p-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg border border-white/30 transition-all duration-200 group"
+                title="Bookmark Task"
+              >
+                <Star className="w-5 h-5 text-white group-hover:text-yellow-300" />
+              </button>
+              <button
+                onClick={handleShareTask}
+                className="p-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg border border-white/30 transition-all duration-200"
+                title="Share Task"
+              >
+                <Share2 className="w-5 h-5 text-white" />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 bg-white/20 hover:bg-red-500/30 backdrop-blur-sm rounded-lg border border-white/30 transition-all duration-200"
+                title="Close"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
           </div>
+        </div>
 
-          {/* Navigation Tabs */}
-          <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid #e2e8f0' }}>
+        {/* Professional Status Bar */}
+        <div className="bg-gradient-to-r from-gray-50 to-blue-50/30 px-6 py-4 border-b border-gray-200/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${task.status === 'completed' ? 'bg-green-500' : task.status === 'in_progress' ? 'bg-blue-500' : task.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'}`}></div>
+                <span className="text-sm font-medium text-gray-700">
+                  {task.status.replace('_', ' ').toUpperCase()}
+                </span>
+              </div>
+              
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <DollarSign className="w-4 h-4" />
+                <span className="font-semibold">${task.budget}</span>
+              </div>
+              
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <CheckCircle className="w-4 h-4" />
+                <span>{task.deliverables.length} Deliverables</span>
+              </div>
+              
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <Paperclip className="w-4 h-4" />
+                <span>{task.attachments?.length || 0} Files</span>
+              </div>
+            </div>
+            
+            {/* Quick Actions */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handleCopyTaskId}
+                className="px-3 py-1.5 text-xs bg-white/80 hover:bg-white border border-gray-200 rounded-lg transition-colors flex items-center space-x-1"
+              >
+                <Copy className="w-3 h-3" />
+                <span>Copy ID</span>
+              </button>
+              <button
+                onClick={handleExportTask}
+                className="px-3 py-1.5 text-xs bg-white/80 hover:bg-white border border-gray-200 rounded-lg transition-colors flex items-center space-x-1"
+              >
+                <Download className="w-3 h-3" />
+                <span>Export</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Professional Tab Navigation */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="flex overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => {
               const IconComponent = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.75rem 1.5rem',
-                    border: 'none',
-                    background: 'none',
-                    color: activeTab === tab.id ? '#1e40af' : '#64748b',
-                    borderBottom: activeTab === tab.id ? '2px solid #1e40af' : '2px solid transparent',
-                    cursor: 'pointer',
-                    fontSize: '0.875rem',
-                    fontWeight: '500',
-                    transition: 'all 0.2s'
-                  }}
+                  className={`flex items-center space-x-2 px-6 py-4 border-b-2 transition-all duration-200 whitespace-nowrap ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+                      : 'border-transparent text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
                 >
-                  <IconComponent className="w-4 h-4" />
-                  {tab.label}
+                  <IconComponent className={`w-4 h-4 ${activeTab === tab.id ? 'text-blue-600' : 'text-gray-500'}`} />
+                  <span className="font-medium">{tab.label}</span>
+                  {tab.badge !== null && tab.badge > 0 && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      activeTab === tab.id 
+                        ? 'bg-blue-100 text-blue-600' 
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {tab.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div style={{ padding: '2rem', maxHeight: '60vh', overflowY: 'auto' }}>
+        {/* Professional Content Area */}
+        <div className="flex-1 overflow-y-auto">
           {activeTab === 'overview' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '2rem' }}>
-              <div>
-                <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>
-                  Task Information
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <FileText className="w-5 h-5 text-muted-foreground" />
-                    <div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Subject</div>
-                      <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{task.subject}</div>
+            <div className="p-6 space-y-6">
+              {/* Overview Content */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Task Details Card */}
+                <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl p-6 border border-gray-200/50 shadow-sm">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <FileText className="w-5 h-5 text-blue-600" />
                     </div>
+                    <h3 className="text-lg font-semibold text-gray-800">Task Details</h3>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Calendar className="w-5 h-5 text-muted-foreground" />
+                  
+                  <div className="space-y-4">
                     <div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Due Date</div>
-                      <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                        {new Date(task.dueDate).toLocaleDateString('en-US', { 
-                          weekday: 'long', 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
-                        })}
+                      <label className="text-sm font-medium text-gray-600">Description</label>
+                      <p className="mt-1 text-gray-800 leading-relaxed">{task.description}</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Subject</label>
+                        <p className="mt-1 text-gray-800 font-medium">{task.subject}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Budget</label>
+                        <p className="mt-1 text-gray-800 font-semibold">${task.budget}</p>
                       </div>
                     </div>
+                    
+
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Clock className="w-5 h-5 text-muted-foreground" />
+                </div>
+
+                {/* Status & Priority Card */}
+                <div className="bg-gradient-to-br from-white to-purple-50/30 rounded-xl p-6 border border-gray-200/50 shadow-sm">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <Activity className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-800">Status & Progress</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {userRole === 'admin' ? (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600 mb-2 block">Update Status</label>
+                        <select
+                          value={task.status}
+                          onChange={(e) => handleStatusUpdate(e.target.value)}
+                          disabled={loading}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed</option>
+                          <option value="revision_needed">Needs Revision</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Current Status</label>
+                        <div className="mt-1 flex items-center space-x-2">
+                          <div className={`w-2 h-2 rounded-full ${
+                            task.status === 'completed' ? 'bg-green-500' : 
+                            task.status === 'in_progress' ? 'bg-blue-500' : 
+                            task.status === 'pending' ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}></div>
+                          <span className="text-gray-800 font-medium">
+                            {task.status.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    
                     <div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Created</div>
-                      <div style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                        {new Date(task.createdAt).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
-                        })}
+                      <label className="text-sm font-medium text-gray-600">Priority Level</label>
+                      <div className="mt-1">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
+                          <Flag className="w-3 h-3 mr-1" />
+                          {task.priority.toUpperCase()} PRIORITY
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Due Date</label>
+                      <div className="mt-1 flex items-center space-x-2 text-gray-800">
+                        <Calendar className="w-4 h-4 text-gray-500" />
+                        <span>{new Date(task.dueDate).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div>
-                <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>
-                  Progress Summary
-                </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Deliverables</span>
-                      <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
-                        {task.deliverables.filter(d => d.status === 'completed').length} of {task.deliverables.length} completed
-                      </span>
-                    </div>
-                    <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div 
-                        style={{ 
-                          width: `${task.deliverables.length > 0 ? (task.deliverables.filter(d => d.status === 'completed').length / task.deliverables.length) * 100 : 0}%`, 
-                          height: '100%', 
-                          backgroundColor: '#22c55e',
-                          transition: 'width 0.3s ease'
-                        }} 
-                      />
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', backgroundColor: '#f0fdf4', borderRadius: '0.5rem', border: '1px solid #bbf7d0' }}>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '500', color: '#166534' }}>Budget</span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: '#166534' }}>${task.budget}</span>
-                  </div>
+              {/* Action Buttons */}
+              {userRole === 'admin' && (
+                <div className="flex justify-center space-x-3 pt-4 border-t border-gray-200">
+                  <button 
+                    onClick={handleContactStudent}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Contact Student</span>
+                  </button>
+                  <button 
+                    onClick={handleDownloadAll}
+                    className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download All</span>
+                  </button>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
           {activeTab === 'deliverables' && (
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1e293b', margin: 0 }}>
-                  Deliverables ({task.deliverables.length})
-                </h4>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800">Task Deliverables</h3>
+                </div>
+                <span className="text-sm text-gray-600">{task.deliverables.length} items</span>
               </div>
-              
+
               {task.deliverables.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div className="space-y-4">
                   {task.deliverables.map((deliverable, index) => (
-                    <div key={deliverable.id || index} className="deliverable-item">
-                      <div className="deliverable-header">
-                        <div className="deliverable-content">
-                          <h5 className="deliverable-title">{deliverable.title}</h5>
-                          <div className="deliverable-meta">
-                            <span className={`badge ${getStatusColor(deliverable.status)}`}>
-                              {deliverable.status.replace('_', ' ')}
-                            </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: '#64748b' }}>
-                              <Calendar className="w-4 h-4" />
-                              <span>Due: {new Date(deliverable.dueDate).toLocaleDateString()}</span>
+                    <div key={deliverable.id} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-800 mb-2">{deliverable.title}</h4>
+                          <p className="text-sm text-gray-600 mb-3">{deliverable.description}</p>
+                          
+                          {deliverable.files && deliverable.files.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Attached Files</p>
+                              <div className="flex flex-wrap gap-2">
+                                {deliverable.files.map((file: any, fileIndex: number) => (
+                                  <div key={fileIndex} className="flex items-center space-x-2 px-3 py-2 bg-blue-50 rounded-lg border border-blue-200">
+                                    <Paperclip className="w-4 h-4 text-blue-600" />
+                                    <span className="text-sm text-blue-800 font-medium">{file.name}</span>
+                                    <button
+                                      onClick={() => window.open(file.url, '_blank')}
+                                      className="p-1 hover:bg-blue-200 rounded"
+                                    >
+                                      <ExternalLink className="w-3 h-3 text-blue-600" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
-                          {deliverable.description && (
-                            <p style={{ color: '#64748b', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-                              {deliverable.description}
-                            </p>
                           )}
                         </div>
-                        {userRole === 'admin' && (
-                          <div className="deliverable-actions">
-                            <button className="btn btn-outline btn-sm">
-                              <Download className="w-4 h-4 mr-2" />
-                              Download
-                            </button>
-                            {deliverable.status === 'submitted' && (
-                              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <button className="btn btn-sm" style={{ backgroundColor: '#22c55e', color: 'white' }}>
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                  Approve
-                                </button>
-                                <button className="btn btn-sm" style={{ backgroundColor: '#f59e0b', color: 'white' }}>
-                                  <AlertCircle className="w-4 h-4 mr-2" />
-                                  Request Changes
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        
+                        <div className="flex items-center space-x-2 ml-4">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            deliverable.status === 'completed' ? 'bg-green-100 text-green-800' :
+                            deliverable.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {deliverable.status.replace('_', ' ')}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
-                  <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                  <p>No deliverables have been added yet.</p>
+                <div className="text-center py-12">
+                  <CheckCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No deliverables for this task yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'attachments' && (
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <Paperclip className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800">Task Files</h3>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-gray-600">{task.attachments?.length || 0} files</span>
+                  {task.attachments && task.attachments.length > 0 && (
+                    <button
+                      onClick={handleDownloadAll}
+                      className="px-3 py-1.5 text-xs bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors flex items-center space-x-1"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Download All</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {task.attachments && task.attachments.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {task.attachments.map((file, index) => (
+                    <div key={index} className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3 flex-1 min-w-0">
+                          <div className="p-2 bg-gray-100 rounded-lg flex-shrink-0">
+                            <FileText className="w-5 h-5 text-gray-600" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-gray-800 truncate">{file.name}</p>
+                            <p className="text-sm text-gray-500">{file.size || 'Unknown size'}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-1 flex-shrink-0">
+                          <button
+                            onClick={() => window.open(file.url, '_blank')}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Preview"
+                          >
+                            <Eye className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <button
+                            onClick={() => window.open(file.url, '_blank')}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Download"
+                          >
+                            <Download className="w-4 h-4 text-gray-600" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Paperclip className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No files attached to this task.</p>
                 </div>
               )}
             </div>
           )}
 
           {activeTab === 'student' && (
-            <div>
-              <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1e293b', marginBottom: '1.5rem' }}>
-                Student Information
-              </h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '2rem' }}>
-                <div>
-                  <h5 style={{ fontSize: '1rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>
-                    Contact Details
-                  </h5>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <User className="w-5 h-5 text-muted-foreground" />
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Name</div>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{task.student.name}</div>
-                      </div>
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <User className="w-5 h-5 text-blue-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">Student Information</h3>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Student Profile Card */}
+                <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl p-6 border border-gray-200/50">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                      <User className="w-6 h-6 text-blue-600" />
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <Mail className="w-5 h-5 text-muted-foreground" />
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Email</div>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{mockStudentInfo.email}</div>
-                      </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-800">{task.student.name}</h4>
+                      <p className="text-sm text-gray-600">{task.student.email}</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <Phone className="w-5 h-5 text-muted-foreground" />
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Phone</div>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{mockStudentInfo.phone}</div>
-                      </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <Mail className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm text-gray-700">{task.student.email}</span>
                     </div>
+                    {mockStudentInfo.phone && (
+                      <div className="flex items-center space-x-3">
+                        <Phone className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">{mockStudentInfo.phone}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                <div>
-                  <h5 style={{ fontSize: '1rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>
-                    Academic Information
-                  </h5>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <GraduationCap className="w-5 h-5 text-muted-foreground" />
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>University</div>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{mockStudentInfo.university}</div>
-                      </div>
+                {/* Academic Information Card */}
+                <div className="bg-gradient-to-br from-white to-green-50/30 rounded-xl p-6 border border-gray-200/50">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <GraduationCap className="w-5 h-5 text-green-600" />
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <FileText className="w-5 h-5 text-muted-foreground" />
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Course</div>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{mockStudentInfo.course}</div>
-                      </div>
+                    <h4 className="font-semibold text-gray-800">Academic Details</h4>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">University</label>
+                      <p className="text-sm text-gray-700 mt-1">{mockStudentInfo.university}</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <Target className="w-5 h-5 text-muted-foreground" />
-                      <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>Year</div>
-                        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{mockStudentInfo.year}</div>
-                      </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Course</label>
+                      <p className="text-sm text-gray-700 mt-1">{mockStudentInfo.course}</p>
                     </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Year</label>
+                      <p className="text-sm text-gray-700 mt-1">{mockStudentInfo.year}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Actions */}
+              {userRole === 'admin' && (
+                <div className="flex justify-center space-x-3 mt-6 pt-6 border-t border-gray-200">
+                  <button 
+                    onClick={handleContactStudent}
+                    className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Send Message</span>
+                  </button>
+                  <button className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm">
+                    <Mail className="w-4 h-4" />
+                    <span>Send Email</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2 bg-indigo-100 rounded-lg">
+                  <BarChart3 className="w-5 h-5 text-indigo-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">Task Analytics</h3>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Progress</p>
+                      <p className="text-2xl font-bold text-gray-800">75%</p>
+                    </div>
+                    <TrendingUp className="w-6 h-6 text-green-500" />
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Time Spent</p>
+                      <p className="text-2xl font-bold text-gray-800">12h</p>
+                    </div>
+                    <Clock className="w-6 h-6 text-blue-500" />
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Messages</p>
+                      <p className="text-2xl font-bold text-gray-800">8</p>
+                    </div>
+                    <MessageCircle className="w-6 h-6 text-purple-500" />
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Files</p>
+                      <p className="text-2xl font-bold text-gray-800">{task.attachments?.length || 0}</p>
+                    </div>
+                    <Paperclip className="w-6 h-6 text-orange-500" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <h4 className="font-semibold text-gray-800 mb-4">Activity Overview</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">Task created</span>
+                    <span className="text-sm text-gray-800">{new Date(task.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">Last updated</span>
+                    <span className="text-sm text-gray-800">{new Date(task.updatedAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-gray-600">Due date</span>
+                    <span className="text-sm text-gray-800">{new Date(task.dueDate).toLocaleDateString()}</span>
                   </div>
                 </div>
               </div>
@@ -417,76 +735,114 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
           )}
 
           {activeTab === 'timeline' && (
-            <div>
-              <h4 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#1e293b', marginBottom: '1.5rem' }}>
-                Task Timeline
-              </h4>
-              <div style={{ position: 'relative' }}>
-                {/* Timeline line */}
-                <div style={{ 
-                  position: 'absolute', 
-                  left: '1rem', 
-                  top: '2rem', 
-                  bottom: '2rem', 
-                  width: '2px', 
-                  backgroundColor: '#e2e8f0' 
-                }} />
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  {mockTimeline.map((event, index) => (
-                    <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '1rem', position: 'relative' }}>
-                      <div style={{ 
-                        width: '2rem', 
-                        height: '2rem', 
-                        borderRadius: '50%', 
-                        backgroundColor: '#1e40af', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                        zIndex: 1
-                      }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'white' }} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.875rem', fontWeight: '500', color: '#1e293b' }}>
-                          {event.event}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                          {new Date(event.date).toLocaleDateString('en-US', { 
-                            month: 'long', 
-                            day: 'numeric', 
-                            year: 'numeric' 
-                          })}
-                        </div>
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="p-2 bg-green-100 rounded-lg">
+                  <Clock className="w-5 h-5 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-800">Task Timeline</h3>
+              </div>
+
+              <div className="space-y-4">
+                {mockTimeline.map((event, index) => (
+                  <div key={index} className="flex items-start space-x-4">
+                    <div className={`w-3 h-3 rounded-full mt-2 flex-shrink-0 ${
+                      event.type === 'created' ? 'bg-blue-500' :
+                      event.type === 'assigned' ? 'bg-yellow-500' :
+                      event.type === 'progress' ? 'bg-orange-500' :
+                      event.type === 'submission' ? 'bg-green-500' :
+                      'bg-gray-500'
+                    }`}></div>
+                    <div className="flex-1 bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-gray-800">{event.event}</p>
+                        <span className="text-sm text-gray-500">{new Date(event.date).toLocaleDateString()}</span>
                       </div>
                     </div>
-                  ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'notes' && (
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-yellow-100 rounded-lg">
+                    <BookOpen className="w-5 h-5 text-yellow-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800">Task Notes</h3>
+                </div>
+                {userRole === 'admin' && (
+                  <button
+                    onClick={() => setShowNotes(!showNotes)}
+                    className="px-4 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-700 rounded-lg transition-colors flex items-center space-x-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>{showNotes ? 'Cancel' : 'Add Note'}</span>
+                  </button>
+                )}
+              </div>
+
+              {showNotes && userRole === 'admin' && (
+                <div className="mb-6 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Add your notes about this task..."
+                    className="w-full h-32 px-3 py-2 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-none"
+                  />
+                  <div className="flex justify-end space-x-2 mt-3">
+                    <button
+                      onClick={() => setShowNotes(false)}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button className="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors flex items-center space-x-2">
+                      <Save className="w-4 h-4" />
+                      <span>Save Note</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">Admin Note</p>
+                        <p className="text-sm text-gray-500">2 days ago</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-700">Student has requested clarification on the requirements. Follow up needed.</p>
+                </div>
+
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">System Note</p>
+                        <p className="text-sm text-gray-500">5 days ago</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-700">Task automatically assigned based on subject area and admin availability.</p>
                 </div>
               </div>
             </div>
           )}
         </div>
-
-        {/* Footer Actions */}
-        <div className="form-actions">
-          {userRole === 'admin' && (
-            <>
-              <button className="btn btn-outline">
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Task
-              </button>
-              <button className="btn btn-outline" style={{ color: '#ef4444', borderColor: '#ef4444' }}>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Task
-              </button>
-            </>
-          )}
-          <button className="btn btn-outline" onClick={onClose}>
-            Close
-          </button>
-        </div>
       </div>
     </div>
   );
-}
+};
