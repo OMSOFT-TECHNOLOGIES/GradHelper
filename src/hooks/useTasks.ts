@@ -1,11 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
-import { taskService, TaskQueryParams, Task, transformTaskData } from '../services/taskService';
+import { taskService, TaskQueryParams, AdminTaskQueryParams, Task, transformTaskData } from '../services/taskService';
 import { toast } from 'sonner';
 
 interface UseTasksOptions {
   autoFetch?: boolean;
   searchTerm?: string;
   statusFilter?: string;
+  userRole?: 'student' | 'admin';
+  priorityFilter?: string;
+  typeFilter?: string;
+  assignedAdminFilter?: string;
+  studentFilter?: string;
 }
 
 interface UseTasksReturn {
@@ -17,6 +22,7 @@ interface UseTasksReturn {
   createTask: (taskData: Partial<Task>) => Promise<Task | null>;
   updateTask: (taskId: string, updates: Partial<Task>) => Promise<Task | null>;
   updateTaskStatus: (taskId: string, status: Task['status'], reason?: string, feedback?: string) => Promise<Task | null>;
+  updateAdminTaskStatus: (taskId: string | number, status: Task['status'], reason?: string, feedback?: string) => Promise<Task | null>;
   deleteTask: (taskId: string, reason?: string) => Promise<boolean>;
   assignTask: (taskId: string, adminId: string) => Promise<Task | null>;
 }
@@ -25,34 +31,71 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
   const {
     autoFetch = true,
     searchTerm = '',
-    statusFilter = 'all'
+    statusFilter = 'all',
+    userRole = 'student',
+    priorityFilter = 'all',
+    typeFilter = 'all',
+    assignedAdminFilter = 'all',
+    studentFilter = 'all'
   } = options;
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const buildQueryParams = useCallback((): TaskQueryParams => {
-    const params: TaskQueryParams = {};
+  const buildQueryParams = useCallback(() => {
+    if (userRole === 'admin') {
+      const params: any = {};
 
-    if (searchTerm.trim()) {
-      params.search = searchTerm.trim();
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+
+      if (priorityFilter !== 'all') {
+        params.priority = priorityFilter;
+      }
+
+      if (typeFilter !== 'all') {
+        params.type = typeFilter;
+      }
+
+      if (assignedAdminFilter !== 'all') {
+        params.assigned_admin_id = assignedAdminFilter;
+      }
+
+      if (studentFilter !== 'all') {
+        params.user_id = studentFilter;
+      }
+
+      return params;
+    } else {
+      const params: TaskQueryParams = {};
+
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim();
+      }
+
+      if (statusFilter !== 'all') {
+        params.status = statusFilter as TaskQueryParams['status'];
+      }
+
+      return params;
     }
+  }, [searchTerm, statusFilter, userRole, priorityFilter, typeFilter, assignedAdminFilter, studentFilter]);
 
-    if (statusFilter !== 'all') {
-      params.status = statusFilter as TaskQueryParams['status'];
-    }
-
-    return params;
-  }, [searchTerm, statusFilter]);
-
-  const fetchTasks = useCallback(async (customParams?: TaskQueryParams) => {
+  const fetchTasks = useCallback(async (customParams?: any) => {
     setLoading(true);
     setError(null);
 
     try {
       const params = customParams || buildQueryParams();
-      const response = await taskService.getTasks(params);
+      const response = userRole === 'admin' 
+        ? await taskService.getAdminTasks(params)
+        : await taskService.getTasks(params);
 
       if (response.success) {
         console.log('Raw tasks from backend:', response.data);
@@ -322,6 +365,56 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     }
   }, [fetchTasks, autoFetch]);
 
+  const updateAdminTaskStatus = useCallback(async (
+    taskId: string | number, 
+    status: Task['status'],
+    reason?: string,
+    feedback?: string
+  ): Promise<Task | null> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await taskService.updateAdminTaskStatus(taskId, status, reason, feedback);
+      
+      if (response.success) {
+        const transformedTask = transformTaskData(response.data);
+        
+        // Update the task in the list
+        setTasks(prev => prev.map(task => 
+          task.id === taskId.toString() ? transformedTask : task
+        ));
+        
+        const statusMessages = {
+          pending: 'marked as pending',
+          in_progress: 'marked as in progress',
+          completed: 'marked as completed',
+          revision_needed: 'marked as needing revision',
+          rejected: 'rejected',
+        };
+        
+        toast.success('Task status updated', {
+          description: `"${transformedTask.title}" has been ${statusMessages[status]}.`,
+        });
+        
+        return transformedTask;
+      } else {
+        throw new Error('Failed to update task status');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update task status';
+      setError(errorMessage);
+      
+      toast.error('Failed to update task status', {
+        description: errorMessage,
+      });
+      
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     tasks,
     loading,
@@ -331,6 +424,7 @@ export function useTasks(options: UseTasksOptions = {}): UseTasksReturn {
     createTask,
     updateTask,
     updateTaskStatus,
+    updateAdminTaskStatus,
     deleteTask,
     assignTask,
   };

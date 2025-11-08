@@ -6,6 +6,36 @@ export interface TaskQueryParams {
   search?: string;
 }
 
+export interface AdminTaskQueryParams extends TaskQueryParams {
+  user_id?: string;
+  assigned_admin_id?: string;
+  priority?: 'low' | 'medium' | 'high';
+  type?: string;
+  include_cancelled?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+export interface AdminTasksResponse {
+  success: boolean;
+  data: Task[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+  filters: {
+    status: string | null;
+    user_id: string | null;
+    assigned_admin_id: string | null;
+    priority: string | null;
+    type: string | null;
+    search: string;
+    include_cancelled: boolean;
+  };
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -46,14 +76,23 @@ export interface DeliverableFile {
 }
 
 export interface Deliverable {
-  id: string;
+  id: number;
+  task: number;
+  task_title: string;
+  task_type: string;
   title: string;
   description: string;
   dueDate: string;
-  status: 'pending' | 'in_progress' | 'completed' | 'revision_needed' | 'under_review' | 'needs_revision';
+  status: 'pending' | 'in_progress' | 'completed' | 'revision_needed' | 'under_review' | 'needs_revision' | 'approved' | 'rejected';
+  priority: string;
   files: DeliverableFile[];
+  files_count: number;
+  approved: boolean;
+  created_at: string;
+  updated_at: string;
   feedback?: string;
   submittedAt?: string;
+  // Legacy fields for backward compatibility  
   createdAt?: string;
   updatedAt?: string;
   taskId?: string;
@@ -61,6 +100,25 @@ export interface Deliverable {
   student?: {
     id: string;
     name: string;
+  };
+  // Enhanced task information from admin endpoint
+  task_info?: {
+    id: number;
+    title: string;
+    type: string;
+    status: string;
+    priority: string;
+    deadline: string;
+    student: {
+      id: number;
+      username: string;
+      email: string;
+    };
+    assignedAdmin?: {
+      id: number;
+      username: string;
+      email: string;
+    };
   };
 }
 
@@ -173,6 +231,32 @@ class TaskService {
   }
 
   /**
+   * Admin: Fetch all tasks from all students
+   * GET /admin/tasks
+   */
+  async getAdminTasks(params: AdminTaskQueryParams = {}): Promise<AdminTasksResponse> {
+    // Build query string
+    const searchParams = new URLSearchParams();
+    
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        searchParams.append(key, value.toString());
+      }
+    });
+
+    const queryString = searchParams.toString();
+    const endpoint = `/admin/tasks${queryString ? `?${queryString}` : ''}`;
+
+    try {
+      const response = await this.makeRequest<AdminTasksResponse>(endpoint);
+      return response;
+    } catch (error) {
+      console.error('Error fetching admin tasks:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get a specific task by ID
    * GET /tasks/{taskId}
    */
@@ -244,6 +328,60 @@ class TaskService {
   }
 
   /**
+   * Admin: Update task status
+   * PATCH /admin/tasks/{taskId}/status/
+   */
+  async updateAdminTaskStatus(
+    taskId: string | number, 
+    status: Task['status'],
+    reason?: string,
+    feedback?: string
+  ): Promise<{ success: boolean; data: Task }> {
+    try {
+      const body: any = { status };
+      if (reason) body.reason = reason;
+      if (feedback) body.feedback = feedback;
+
+      const response = await this.makeRequest<{ success: boolean; data: Task }>(`/admin/tasks/${taskId}/status/`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      return response;
+    } catch (error) {
+      console.error(`Error updating admin task status ${taskId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Admin: Update deliverable status
+   * PATCH /admin/deliverables/{deliverableId}/status/
+   */
+  async updateAdminDeliverableStatus(
+    deliverableId: string | number, 
+    status: Deliverable['status'],
+    reason?: string,
+    feedback?: string
+  ): Promise<{ success: boolean; message: string; data: Deliverable }> {
+    try {
+      const body: any = { status };
+      if (reason) body.reason = reason;
+      if (feedback) body.feedback = feedback;
+      console.log('Updating admin deliverable status with data:', body);
+      const response = await this.makeRequest<{ success: boolean; message: string; data: Deliverable }>(`/admin/deliverables/${deliverableId}/status/`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+      
+      console.log(`Successfully updated deliverable status for deliverable ${deliverableId} to ${status}`);
+      return response;
+    } catch (error) {
+      console.error(`Error updating admin deliverable status ${deliverableId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete a task
    * DELETE /tasks/{taskId}
    */
@@ -302,6 +440,96 @@ class TaskService {
       return response;
     } catch (error) {
       console.error('Error fetching user deliverables:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Admin: Get all tasks with their deliverables
+   * GET /admin/tasks/deliverables
+   */
+  async getAdminTasksWithDeliverables(params?: {
+    status?: string;
+    task_status?: string;
+    search?: string;
+    user_id?: string;
+    assigned_admin_id?: string;
+    priority?: string;
+    has_deliverables?: boolean;
+    include_cancelled?: boolean;
+    page?: number;
+    limit?: number;
+  }): Promise<{ 
+    success: boolean; 
+    data: Array<{
+      task: {
+        id: number;
+        title: string;
+        type: string;
+        status: string;
+        priority: string;
+        deadline: string;
+        created_at: string;
+        updated_at: string;
+        student: {
+          id: number;
+          username: string;
+          email: string;
+        };
+        assignedAdmin?: {
+          id: number;
+          username: string;
+          email: string;
+        };
+      };
+      deliverables: Deliverable[];
+      deliverables_count: number;
+      deliverables_stats: {
+        pending: number;
+        in_progress: number;
+        completed: number;
+        approved: number;
+        total_files: number;
+      };
+    }>;
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+    filters?: any;
+  }> {
+    try {
+      // Build query string for filtering
+      const searchParams = new URLSearchParams();
+      
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== '' && value !== 'all') {
+            searchParams.append(key, value.toString());
+          }
+        });
+      }
+
+      const queryString = searchParams.toString();
+      const endpoint = `/admin/tasks/deliverables${queryString ? `?${queryString}` : ''}`;
+
+      const response = await this.makeRequest<{ 
+        success: boolean; 
+        data: Array<{
+          task: any;
+          deliverables: Deliverable[];
+          deliverables_count: number;
+          deliverables_stats: any;
+        }>;
+        pagination?: any;
+        filters?: any;
+      }>(endpoint);
+      
+      return response;
+    } catch (error) {
+      console.error('Error fetching admin tasks with deliverables:', error);
       throw error;
     }
   }

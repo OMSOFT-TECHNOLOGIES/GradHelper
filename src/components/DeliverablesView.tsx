@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNotifications } from './NotificationContext';
 import { 
   CheckSquare, 
@@ -67,17 +68,80 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch user's deliverables from backend
+  // Dropdown menu state
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const portalMenuRef = useRef<HTMLDivElement>(null);
+  const buttonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+
+  // Admin-specific filter states
+  const [adminFilters, setAdminFilters] = useState({
+    user_id: 'all',
+    assigned_admin_id: 'all',
+    task_status: 'all',
+    priority: 'all',
+    has_deliverables: 'all'
+  });
+
+  // Fetch deliverables from backend (role-based)
   const fetchDeliverables = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await taskService.getUserDeliverables();
+      let response;
       
-      if (response.success) {
-        setDeliverables(response.data);
+      if (userRole === 'admin') {
+        // Admin view: get all tasks with deliverables
+        const params = {
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          task_status: adminFilters.task_status !== 'all' ? adminFilters.task_status : undefined,
+          search: searchTerm || undefined,
+          user_id: adminFilters.user_id !== 'all' ? adminFilters.user_id : undefined,
+          assigned_admin_id: adminFilters.assigned_admin_id !== 'all' ? adminFilters.assigned_admin_id : undefined,
+          priority: adminFilters.priority !== 'all' ? adminFilters.priority : undefined,
+          has_deliverables: adminFilters.has_deliverables !== 'all' ? adminFilters.has_deliverables === 'true' : undefined,
+        };
+        
+        response = await taskService.getAdminTasksWithDeliverables(params);
+        
+        // Flatten the deliverables from all tasks for the UI
+        if (response.success) {
+          const flattenedDeliverables: Deliverable[] = [];
+          response.data.forEach(taskData => {
+            // Skip deliverables from rejected tasks for admin view
+            if (taskData.task.status === 'rejected') {
+              return;
+            }
+            
+            taskData.deliverables.forEach(deliverable => {
+              // Add task information to each deliverable for context
+              flattenedDeliverables.push({
+                ...deliverable,
+                task_info: {
+                  id: taskData.task.id,
+                  title: taskData.task.title,
+                  type: taskData.task.type,
+                  status: taskData.task.status,
+                  priority: taskData.task.priority,
+                  deadline: taskData.task.deadline,
+                  student: taskData.task.student,
+                  assignedAdmin: taskData.task.assignedAdmin
+                }
+              });
+            });
+          });
+          setDeliverables(flattenedDeliverables);
+        }
       } else {
+        // Student view: get only user's deliverables
+        response = await taskService.getUserDeliverables();
+        if (response.success) {
+          setDeliverables(response.data);
+        }
+      }
+      
+      if (!response.success) {
         throw new Error('Failed to fetch deliverables');
       }
     } catch (err) {
@@ -98,10 +162,10 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
     }
   };
 
-  // Fetch deliverables on component mount
+  // Fetch deliverables on component mount and when filters change
   useEffect(() => {
     fetchDeliverables();
-  }, []);
+  }, [statusFilter, searchTerm, adminFilters, userRole]);
 
   const handleStatusUpdate = (deliverable: any, status: string) => {
     if (status === 'needs_revision') {
@@ -457,6 +521,211 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
     setShowDeleteModal(true);
   };
 
+  // Admin deliverable status update
+  const handleAdminStatusUpdate = async (deliverable: any, newStatus: string) => {
+    try {
+      setLoading(true);
+      
+      const response = await taskService.updateAdminDeliverableStatus(deliverable.id, newStatus as Deliverable['status']);
+      
+      if (response.success) {
+        // Update the deliverable in the local state
+        setDeliverables(prev => prev.map(item => 
+          item.id === deliverable.id 
+            ? { ...item, status: newStatus as Deliverable['status'] }
+            : item
+        ));
+
+        const statusMessages = {
+          pending: 'marked as pending',
+          in_progress: 'marked as in progress',
+          completed: 'marked as completed',
+          under_review: 'marked as under review',
+          needs_revision: 'marked as needing revision',
+          approved: 'approved successfully',
+          rejected: 'rejected',
+        };
+
+        toast.success('Deliverable status updated', {
+          description: response.message || `"${deliverable.title}" has been ${statusMessages[newStatus as keyof typeof statusMessages] || 'updated'}.`,
+        });
+
+        // Add notification
+        addNotification({
+          type: 'system',
+          title: 'Deliverable Status Updated',
+          message: `"${deliverable.title}" status changed to ${newStatus.replace('_', ' ')}.`,
+          userId: deliverable.task_info?.student.id || user.id,
+          userRole: 'student',
+          data: { deliverableId: deliverable.id, newStatus }
+        });
+      }
+    } catch (error) {
+      console.error('Error updating deliverable status:', error);
+      toast.error('Failed to update deliverable status', {
+        description: 'Please try again or contact support if the problem persists.'
+      });
+    } finally {
+      setLoading(false);
+      setOpenMenuId(null);
+    }
+  };
+
+  // Handle deliverable approval
+  const handleApproveDeliverable = async (deliverable: any) => {
+    try {
+      setLoading(true);
+      
+      // For approval, we'll need to call a specific approve endpoint or update both status and approved flag
+      // First mark as completed, then we should also set approved to true
+      const response = await taskService.updateAdminDeliverableStatus(deliverable.id, 'approved');
+      
+      if (response.success) {
+        // Update the deliverable in the local state with both completed status and approved flag
+        setDeliverables(prev => prev.map(item => 
+          item.id === deliverable.id 
+            ? { ...item, status: 'approved' as Deliverable['status'], approved: true }
+            : item
+        ));
+
+        toast.success('Deliverable approved successfully', {
+          description: `"${deliverable.title}" has been approved and marked as completed.`,
+        });
+
+        // Add notification for approval
+        addNotification({
+          type: 'deliverable_approved',
+          title: 'Deliverable Approved',
+          message: `Your deliverable "${deliverable.title}" has been approved!`,
+          userId: deliverable.task_info?.student.id || user.id,
+          userRole: 'student',
+          data: { deliverableId: deliverable.id, approved: true }
+        });
+      }
+    } catch (error) {
+      console.error('Error approving deliverable:', error);
+      toast.error('Failed to approve deliverable', {
+        description: 'Please try again or contact support if the problem persists.'
+      });
+    } finally {
+      setLoading(false);
+      setOpenMenuId(null);
+    }
+  };
+
+  // Handle deliverable rejection
+  const handleRejectDeliverable = async (deliverable: any) => {
+    try {
+      setLoading(true);
+      
+      // For rejection, we'll mark the deliverable as needs_revision or rejected
+      const response = await taskService.updateAdminDeliverableStatus(deliverable.id, 'needs_revision');
+      
+      if (response.success) {
+        // Update the deliverable in the local state
+        setDeliverables(prev => prev.map(item => 
+          item.id === deliverable.id 
+            ? { ...item, status: 'needs_revision' as Deliverable['status'], approved: false }
+            : item
+        ));
+
+        toast.success('Deliverable rejected successfully', {
+          description: `"${deliverable.title}" has been marked as needing revision.`,
+        });
+
+        // Add notification for rejection
+        addNotification({
+          type: 'deliverable_rejected',
+          title: 'Deliverable Rejected',
+          message: `Your deliverable "${deliverable.title}" needs revision. Please check the feedback.`,
+          userId: deliverable.task_info?.student.id || user.id,
+          userRole: 'student',
+          data: { deliverableId: deliverable.id, approved: false }
+        });
+      }
+    } catch (error) {
+      console.error('Error rejecting deliverable:', error);
+      toast.error('Failed to reject deliverable', {
+        description: 'Please try again or contact support if the problem persists.'
+      });
+    } finally {
+      setLoading(false);
+      setOpenMenuId(null);
+    }
+  };
+
+  // Handle menu toggle
+  const handleMenuToggle = (deliverableId: string) => {
+    if (openMenuId === deliverableId) {
+      setOpenMenuId(null);
+    } else {
+      const buttonElement = buttonRefs.current[deliverableId];
+      if (buttonElement) {
+        const rect = buttonElement.getBoundingClientRect();
+        const dropdownWidth = 224;
+        const dropdownHeight = 300; // Approximate height of dropdown with all options
+        
+        // Default position: below button, aligned to right edge
+        let top = rect.bottom + window.scrollY + 4;
+        let left = rect.right - dropdownWidth;
+        
+        // Adjust if dropdown would go off screen to the left
+        if (left < 8) {
+          left = 8;
+        }
+        
+        // Adjust if dropdown would go off screen to the right
+        if (left + dropdownWidth > window.innerWidth - 8) {
+          left = window.innerWidth - dropdownWidth - 8;
+        }
+        
+        // Adjust if dropdown would go below viewport
+        if (rect.bottom + dropdownHeight > window.innerHeight) {
+          top = rect.top + window.scrollY - dropdownHeight - 4;
+          // Ensure it doesn't go above viewport
+          if (top < 8) {
+            top = 8;
+          }
+        }
+        
+        setMenuPosition({ top, left });
+      }
+      setOpenMenuId(deliverableId);
+    }
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (!openMenuId) return;
+      
+      const target = event.target as Node;
+      
+      // Check if clicked on a dropdown button
+      const clickedOnButton = Object.values(buttonRefs.current).some(buttonRef => 
+        buttonRef && buttonRef.contains(target)
+      );
+      
+      // Check if clicked inside the portal menu
+      const clickedInsidePortal = portalMenuRef.current && portalMenuRef.current.contains(target);
+      
+      if (!clickedOnButton && !clickedInsidePortal) {
+        setOpenMenuId(null);
+      }
+    };
+
+    if (openMenuId) {
+      // Small delay to prevent immediate closure when opening
+      setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 100);
+      
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [openMenuId]);
+
   // Delete deliverable
   const handleConfirmDelete = async () => {
     if (!selectedDeliverable) return;
@@ -558,7 +827,9 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
   const filteredDeliverables = deliverables.filter(deliverable => {
     const matchesSearch = searchTerm === '' || 
       deliverable.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (deliverable as any).taskTitle?.toLowerCase().includes(searchTerm.toLowerCase());
+      deliverable.task_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      deliverable.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (userRole === 'admin' && deliverable.task_info?.student.username.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === 'all' || deliverable.status === statusFilter;
     
@@ -570,6 +841,8 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
     switch (status) {
       case 'completed':
         return 'bg-green-100 text-green-800 border-green-200';
+      case 'approved':
+        return 'bg-emerald-100 text-emerald-800 border-emerald-200';
       case 'under_review':
         return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'in_progress':
@@ -598,68 +871,137 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40">
-      {/* Professional Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-slate-200/60 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl shadow-lg">
-                <FileText className="w-6 h-6 text-white" />
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      {/* Enhanced Professional Header */}
+      <div className="relative bg-white/90 backdrop-blur-lg border-b border-slate-200/50 sticky top-0 z-20">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-indigo-600/5 to-purple-600/5"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="flex items-center space-x-5">
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl blur-sm opacity-20"></div>
+                <div className="relative p-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl shadow-xl">
+                  <FileText className="w-7 h-7 text-white" />
+                </div>
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">Deliverables Management</h1>
-                <p className="text-slate-600 mt-1">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+                  Deliverables Management
+                </h1>
+                <p className="text-slate-600 mt-2 text-lg">
                   {userRole === 'student' 
-                    ? 'Track and manage all your project deliverables'
-                    : 'Review and approve deliverables from students'
+                    ? 'Track and manage all your project deliverables with ease'
+                    : 'Review and approve deliverables from students efficiently'
                   }
                 </p>
               </div>
             </div>
             
-            {/* Search and Filters */}
-            <div className="flex flex-col sm:flex-row items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            {/* Enhanced Search and Filters */}
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <div className="relative group">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-blue-500 transition-colors" />
                 <input
                   type="text"
                   placeholder="Search deliverables..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2.5 w-64 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="pl-12 pr-4 py-3 w-72 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-300 transition-all duration-300 shadow-sm hover:shadow-md"
                 />
               </div>
               
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-slate-500" />
-                <select
-                  className="px-3 py-2.5 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="under_review">Under Review</option>
-                  <option value="completed">Completed</option>
-                  <option value="needs_revision">Needs Revision</option>
-                </select>
-              </div>
-              
-              <button
-                onClick={() => fetchDeliverables()}
-                disabled={loading}
-                className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:opacity-50"
-                title="Refresh deliverables"
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                ) : (
-                  <RefreshCw className="w-4 h-4 text-slate-600" />
+              <div className="flex items-center gap-3">
+                <div className="relative group">
+                  <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
+                  <select
+                    className="pl-10 pr-8 py-3 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-300 transition-all duration-300 shadow-sm hover:shadow-md appearance-none cursor-pointer"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="under_review">Under Review</option>
+                    <option value="completed">Completed</option>
+                    <option value="needs_revision">Needs Revision</option>
+                    <option value="approved">Approved</option>
+                  </select>
+                </div>
+
+                {/* Admin-specific filters */}
+                {userRole === 'admin' && (
+                  <>
+                    <div className="relative group">
+                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
+                      <select
+                        className="pl-10 pr-8 py-3 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-300 transition-all duration-300 shadow-sm hover:shadow-md appearance-none cursor-pointer"
+                        value={adminFilters.user_id}
+                        onChange={(e) => setAdminFilters(prev => ({ ...prev, user_id: e.target.value }))}
+                      >
+                        <option value="all">All Students</option>
+                        {/* TODO: Add dynamic user options from API */}
+                      </select>
+                    </div>
+
+                    <div className="relative group">
+                      <CheckSquare className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
+                      <select
+                        className="pl-10 pr-8 py-3 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-300 transition-all duration-300 shadow-sm hover:shadow-md appearance-none cursor-pointer"
+                        value={adminFilters.task_status}
+                        onChange={(e) => setAdminFilters(prev => ({ ...prev, task_status: e.target.value }))}
+                      >
+                        <option value="all">All Task Status</option>
+                        <option value="pending">Pending Tasks</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed Tasks</option>
+                        <option value="cancelled">Cancelled Tasks</option>
+                      </select>
+                    </div>
+
+                    <div className="relative group">
+                      <Star className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
+                      <select
+                        className="pl-10 pr-8 py-3 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-300 transition-all duration-300 shadow-sm hover:shadow-md appearance-none cursor-pointer"
+                        value={adminFilters.priority}
+                        onChange={(e) => setAdminFilters(prev => ({ ...prev, priority: e.target.value }))}
+                      >
+                        <option value="all">All Priorities</option>
+                        <option value="low">Low Priority</option>
+                        <option value="medium">Medium Priority</option>
+                        <option value="high">High Priority</option>
+                        <option value="urgent">Urgent Priority</option>
+                      </select>
+                    </div>
+
+                    <div className="relative group">
+                      <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors" />
+                      <select
+                        className="pl-10 pr-8 py-3 bg-white/80 backdrop-blur-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-300 transition-all duration-300 shadow-sm hover:shadow-md appearance-none cursor-pointer"
+                        value={adminFilters.has_deliverables}
+                        onChange={(e) => setAdminFilters(prev => ({ ...prev, has_deliverables: e.target.value }))}
+                      >
+                        <option value="all">All Tasks</option>
+                        <option value="true">With Deliverables</option>
+                        <option value="false">Without Deliverables</option>
+                      </select>
+                    </div>
+                  </>
                 )}
-                <span className="text-slate-600">Refresh</span>
-              </button>
+                
+                <button
+                  onClick={() => fetchDeliverables()}
+                  disabled={loading}
+                  className="flex items-center space-x-2 px-5 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-300 disabled:opacity-50 shadow-md hover:shadow-lg"
+                  title="Refresh deliverables"
+                >
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-5 h-5" />
+                  )}
+                  <span className="font-medium">Refresh</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -667,243 +1009,360 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Loading State */}
+        {/* Enhanced Loading State */}
         {loading && (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center space-y-4">
+          <div className="flex items-center justify-center py-20">
+            <div className="flex flex-col items-center space-y-6">
               <div className="relative">
-                <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                <div className="w-16 h-16 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin"></div>
+                <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-b-indigo-600 rounded-full animate-spin animate-reverse"></div>
               </div>
-              <p className="text-slate-600 font-medium">Loading deliverables...</p>
+              <div className="text-center">
+                <p className="text-slate-700 font-semibold text-lg">Loading deliverables...</p>
+                <p className="text-slate-500 text-sm mt-1">Please wait while we fetch your data</p>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Error State */}
+        {/* Enhanced Error State */}
         {error && !loading && (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center bg-white rounded-xl p-8 shadow-sm border border-red-100">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertCircle className="w-8 h-8 text-red-600" />
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center bg-white/80 backdrop-blur-sm rounded-2xl p-10 shadow-xl border border-red-100 max-w-md">
+              <div className="relative mb-6">
+                <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-red-200 rounded-full flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-10 h-10 text-red-600" />
+                </div>
+                <div className="absolute inset-0 w-20 h-20 bg-red-500/10 rounded-full animate-ping mx-auto"></div>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">Failed to load deliverables</h3>
-              <p className="text-slate-600 mb-6">{error}</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-3">Oops! Something went wrong</h3>
+              <p className="text-slate-600 mb-8 leading-relaxed">{error}</p>
               <button
                 onClick={() => fetchDeliverables()}
-                className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200 mx-auto"
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 mx-auto shadow-lg hover:shadow-xl"
               >
-                <RefreshCw className="w-4 h-4" />
-                <span>Try Again</span>
+                <RefreshCw className="w-5 h-5" />
+                <span className="font-medium">Try Again</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Enhanced Empty State */}
         {!loading && !error && filteredDeliverables.length === 0 && (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center bg-white rounded-xl p-8 shadow-sm border border-slate-100">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText className="w-8 h-8 text-slate-400" />
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center bg-white/80 backdrop-blur-sm rounded-2xl p-12 shadow-xl border border-slate-100 max-w-lg">
+              <div className="relative mb-8">
+                <div className="w-24 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-full flex items-center justify-center mx-auto">
+                  <FileText className="w-12 h-12 text-slate-400" />
+                </div>
+                <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
+                  <Plus className="w-4 h-4 text-white" />
+                </div>
               </div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">No deliverables found</h3>
-              <p className="text-slate-600 max-w-md">
+              <h3 className="text-2xl font-bold text-slate-900 mb-4">No deliverables found</h3>
+              <p className="text-slate-600 max-w-md leading-relaxed mb-6">
                 {deliverables.length === 0 ? (
                   userRole === 'student' 
-                    ? 'You haven\'t created any deliverables yet. Create tasks and add deliverables to get started.'
-                    : 'No deliverables have been assigned to you for review yet.'
+                    ? 'You haven\'t created any deliverables yet. Create tasks and add deliverables to get started on your journey!'
+                    : 'No deliverables have been assigned to you for review yet. Students will submit their work here.'
                 ) : (
                   searchTerm ? 
-                    'No deliverables match your search criteria. Try adjusting your filters.' :
+                    'No deliverables match your search criteria. Try adjusting your filters or search terms.' :
                     statusFilter === 'all' 
-                      ? 'No deliverables found.'
-                      : `No deliverables with status "${statusFilter.replace('_', ' ')}" found.`
+                      ? 'No deliverables found with current filters.'
+                      : `No deliverables with status "${statusFilter.replace('_', ' ')}" found. Try a different filter.`
                 )}
               </p>
+              {(searchTerm || statusFilter !== 'all' || 
+                (userRole === 'admin' && (adminFilters.user_id !== 'all' || adminFilters.assigned_admin_id !== 'all' || 
+                  adminFilters.task_status !== 'all' || adminFilters.priority !== 'all' || adminFilters.has_deliverables !== 'all'))) ? (
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('all');
+                    if (userRole === 'admin') {
+                      setAdminFilters({
+                        user_id: 'all',
+                        assigned_admin_id: 'all',
+                        task_status: 'all',
+                        priority: 'all',
+                        has_deliverables: 'all'
+                      });
+                    }
+                  }}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl font-medium"
+                >
+                  Clear Filters
+                </button>
+              ) : null}
             </div>
           </div>
         )}
 
-        {/* Professional Deliverables Grid */}
+        {/* Enhanced Professional Deliverables Grid */}
         {!loading && !error && filteredDeliverables.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredDeliverables.map((item) => (
-              <div key={item.id} className="group bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-lg hover:border-blue-200 transition-all duration-300 overflow-hidden">
-                {/* Card Header */}
-                <div className="p-6 border-b border-slate-100">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8" style={{ overflow: 'visible' }}>
+            {filteredDeliverables.map((item, index) => (
+              <div 
+                key={item.id} 
+                className="group bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-slate-200/50 hover:shadow-2xl hover:border-blue-300/50 transition-all duration-500 hover:-translate-y-2"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                {/* Enhanced Card Header */}
+                <div className="relative p-6 border-b border-slate-100/50 bg-gradient-to-r from-slate-50/50 to-white/50">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusBadgeClass(item.status)}`}>
+                      <div className="flex items-center flex-wrap gap-2 mb-3">
+                        <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold border shadow-sm ${getStatusBadgeClass(item.status)}`}>
                           {item.status.replace('_', ' ').toUpperCase()}
                         </span>
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getPriorityBadgeClass((item as any).priority || 'medium')}`}>
-                          {((item as any).priority || 'medium').toUpperCase()}
+                        <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold border shadow-sm ${getPriorityBadgeClass(item.priority || 'medium')}`}>
+                          {(item.priority || 'medium').toUpperCase()}
                         </span>
+                        {item.approved !== undefined && (
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-xs font-semibold border shadow-sm ${
+                            item.approved 
+                              ? 'bg-green-50 text-green-700 border-green-200' 
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {item.approved ? '✅ APPROVED' : '⏳ PENDING APPROVAL'}
+                          </span>
+                        )}
                       </div>
-                      <h3 className="text-lg font-semibold text-slate-900 mb-1 truncate group-hover:text-blue-600 transition-colors">
+                      <h3 className="text-xl font-bold text-slate-900 mb-2 truncate group-hover:text-blue-600 transition-colors duration-300">
                         {item.title}
                       </h3>
-                      <p className="text-sm text-slate-600 mb-2">
-                        Task: {(item as any).taskTitle || item.title || 'Unknown Task'}
+                      <p className="text-sm text-slate-600 mb-2 font-medium">
+                        📋 {item.task_info?.title || item.task_title || 'Unknown Task'}
                       </p>
-                      {userRole === 'admin' && item.student && (
-                        <div className="flex items-center space-x-1 text-sm text-slate-500">
-                          <User className="w-3 h-3" />
-                          <span>{item.student.name}</span>
+                      {userRole === 'admin' && item.task_info && (
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-2 text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-1.5">
+                            <User className="w-4 h-4" />
+                            <span className="font-medium">{item.task_info.student.username}</span>
+                            <span className="text-xs text-slate-400">({item.task_info.student.email})</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs text-slate-500">
+                            <span className="flex items-center space-x-1">
+                              <CheckSquare className="w-3 h-3" />
+                              <span>Task: {item.task_info.status.replace('_', ' ')}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Calendar className="w-3 h-3" />
+                              <span>{new Date(item.task_info.deadline).toLocaleDateString()}</span>
+                            </span>
+                          </div>
+                          {item.task_info.assignedAdmin && (
+                            <div className="text-xs text-slate-400 flex items-center space-x-1">
+                              <span>Assigned to: {item.task_info.assignedAdmin.username}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {userRole === 'admin' && !item.task_info && item.student && (
+                        <div className="flex items-center space-x-2 text-sm text-slate-500 bg-slate-50 rounded-lg px-3 py-1.5">
+                          <User className="w-4 h-4" />
+                          <span className="font-medium">{item.student.name}</span>
                         </div>
                       )}
                     </div>
                     <div className="flex items-center space-x-1">
                       <button
                         onClick={() => handleEditDeliverable(item)}
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                        className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md"
                         title="Edit deliverable"
                       >
-                        <Edit3 className="w-4 h-4" />
+                        <Edit3 className="w-5 h-5" />
                       </button>
                       <button
                         onClick={() => handleDeleteDeliverable(item)}
-                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                        className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-300 shadow-sm hover:shadow-md"
                         title="Delete deliverable"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Card Content */}
-                <div className="p-6">
+                {/* Enhanced Card Content */}
+                <div className="p-6 space-y-5">
                   {/* Description */}
                   {item.description && (
-                    <p className="text-sm text-slate-600 mb-4 line-clamp-2">
-                      {item.description}
-                    </p>
+                    <div className="bg-gradient-to-r from-slate-50 to-blue-50/30 rounded-xl p-4">
+                      <p className="text-sm text-slate-700 leading-relaxed line-clamp-3">
+                        {item.description}
+                      </p>
+                    </div>
                   )}
 
-                  {/* Files Section */}
+                  {/* Enhanced Files Section */}
                   {item.files && item.files.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Paperclip className="w-4 h-4 text-slate-500" />
-                        <span className="text-sm font-medium text-slate-700">
-                          {item.files.length} file{item.files.length !== 1 ? 's' : ''}
+                    <div className="bg-white border border-slate-100 rounded-xl p-4">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <div className="p-1.5 bg-blue-100 rounded-lg">
+                          <Paperclip className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-800">
+                          {item.files.length} Attachment{item.files.length !== 1 ? 's' : ''}
                         </span>
                       </div>
-                      <div className="space-y-1">
+                      <div className="space-y-2">
                         {item.files.slice(0, 2).map((file, fileIndex) => (
-                          <div key={fileIndex} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
-                            <div className="flex items-center space-x-2 flex-1 min-w-0">
-                              <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                              <span className="text-sm text-slate-700 truncate">
+                          <div key={fileIndex} className="flex items-center justify-between p-3 bg-gradient-to-r from-slate-50 to-blue-50/20 rounded-lg border border-slate-100 hover:border-blue-200 transition-all duration-200">
+                            <div className="flex items-center space-x-3 flex-1 min-w-0">
+                              <div className="p-1.5 bg-white rounded-lg shadow-sm">
+                                <FileText className="w-4 h-4 text-slate-500" />
+                              </div>
+                              <span className="text-sm text-slate-700 font-medium truncate">
                                 {file.name || 'Unknown File'}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-1 flex-shrink-0">
-                              <button className="p-1 text-slate-400 hover:text-blue-600 transition-colors">
-                                <Download className="w-3 h-3" />
+                            <div className="flex items-center space-x-1">
+                              <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-all duration-200">
+                                <Download className="w-4 h-4" />
                               </button>
-                              <button className="p-1 text-slate-400 hover:text-green-600 transition-colors">
-                                <Eye className="w-3 h-3" />
+                              <button className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-100 rounded-lg transition-all duration-200">
+                                <Eye className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
                         ))}
                         {item.files.length > 2 && (
-                          <p className="text-xs text-slate-500 px-2">
-                            +{item.files.length - 2} more files
-                          </p>
+                          <div className="text-center py-2">
+                            <span className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                              +{item.files.length - 2} more files
+                            </span>
+                          </div>
                         )}
                       </div>
                     </div>
                   )}
 
-                  {/* Due Date */}
-                  <div className="flex items-center space-x-4 text-sm text-slate-500 mb-4">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>
-                        {(item as any).submittedAt 
-                          ? `Submitted: ${new Date((item as any).submittedAt).toLocaleDateString()}`
-                          : item.dueDate 
-                          ? `Due: ${new Date(item.dueDate).toLocaleDateString()}`
-                          : 'No due date'
-                        }
-                      </span>
-                    </div>
-                    {(item as any).estimatedHours && (
-                      <div className="flex items-center space-x-1">
-                        <Clock className="w-4 h-4" />
-                        <span>{(item as any).estimatedHours}h</span>
+                  {/* Enhanced Metadata */}
+                  <div className="flex items-center justify-between bg-gradient-to-r from-slate-50 to-indigo-50/30 rounded-xl p-4">
+                    <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex items-center space-x-2 text-slate-600">
+                        <div className="p-1.5 bg-blue-100 rounded-lg">
+                          <Calendar className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <span className="font-medium">
+                          {(item as any).submittedAt 
+                            ? `Submitted: ${new Date((item as any).submittedAt).toLocaleDateString()}`
+                            : item.dueDate 
+                            ? `Due: ${new Date(item.dueDate).toLocaleDateString()}`
+                            : 'No due date'
+                          }
+                        </span>
                       </div>
-                    )}
+                      {(item as any).estimatedHours && (
+                        <div className="flex items-center space-x-2 text-slate-600">
+                          <div className="p-1.5 bg-green-100 rounded-lg">
+                            <Clock className="w-4 h-4 text-green-600" />
+                          </div>
+                          <span className="font-medium">{(item as any).estimatedHours}h</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Feedback */}
+                  {/* Enhanced Feedback */}
                   {(item as any).feedback && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-                      <h4 className="text-sm font-medium text-yellow-800 mb-1">Feedback:</h4>
-                      <p className="text-sm text-yellow-700">{(item as any).feedback}</p>
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="p-1.5 bg-amber-100 rounded-lg">
+                          <Star className="w-4 h-4 text-amber-600" />
+                        </div>
+                        <h4 className="text-sm font-semibold text-amber-800">Feedback</h4>
+                      </div>
+                      <p className="text-sm text-amber-700 leading-relaxed">{(item as any).feedback}</p>
                     </div>
                   )}
                 </div>
 
-                {/* Card Footer - Actions */}
-                <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100">
+                {/* Enhanced Card Footer - Actions */}
+                <div className="px-6 py-4 bg-gradient-to-r from-slate-50/80 to-white/80 border-t border-slate-100/50">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center flex-wrap gap-2">
                       {userRole === 'admin' && (
                         <>
                           {item.status === 'under_review' && (
                             <>
                               <button 
-                                className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                                onClick={() => handleStatusUpdate(item, 'needs_revision')}
+                                className="flex items-center space-x-2 px-4 py-2.5 text-sm bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
+                                onClick={() => handleAdminStatusUpdate(item, 'needs_revision')}
                               >
-                                <X className="w-3 h-3" />
+                                <X className="w-4 h-4" />
                                 <span>Reject</span>
                               </button>
                               <button 
-                                className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                                onClick={() => handleStatusUpdate(item, 'completed')}
+                                className="flex items-center space-x-2 px-4 py-2.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
+                                onClick={() => handleAdminStatusUpdate(item, 'approved')}
                               >
-                                <CheckSquare className="w-3 h-3" />
+                                <CheckSquare className="w-4 h-4" />
                                 <span>Approve</span>
                               </button>
                             </>
                           )}
                           {item.status === 'completed' && (
                             <button 
-                              className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors"
-                              onClick={() => handleStatusUpdate(item, 'needs_revision')}
+                              className="flex items-center space-x-2 px-4 py-2.5 text-sm bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
+                              onClick={() => handleAdminStatusUpdate(item, 'needs_revision')}
                             >
-                              <Edit3 className="w-3 h-3" />
+                              <Edit3 className="w-4 h-4" />
                               <span>Request Changes</span>
                             </button>
                           )}
                           {item.status === 'needs_revision' && (
                             <button 
-                              className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
-                              onClick={() => handleStatusUpdate(item, 'completed')}
+                              className="flex items-center space-x-2 px-4 py-2.5 text-sm bg-gradient-to-r from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition-all duration-300 shadow-md hover:shadow-lg font-medium"
+                              onClick={() => handleAdminStatusUpdate(item, 'completed')}
                             >
-                              <CheckSquare className="w-3 h-3" />
+                              <CheckSquare className="w-4 h-4" />
                               <span>Mark Complete</span>
                             </button>
                           )}
                         </>
                       )}
                       {userRole === 'student' && item.status === 'needs_revision' && (
-                        <button className="flex items-center space-x-1 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
-                          <FileText className="w-3 h-3" />
+                        <button className="flex items-center space-x-2 px-4 py-2.5 text-sm bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg font-medium">
+                          <FileText className="w-4 h-4" />
                           <span>Resubmit</span>
                         </button>
                       )}
                     </div>
                     
-                    <button className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-all">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
+                    {/* Admin Status Dropdown */}
+                    {userRole === 'admin' && (
+                      <div className="relative">
+                        <button 
+                          ref={(el) => {
+                            if (el) {
+                              buttonRefs.current[item.id.toString()] = el;
+                            }
+                          }}
+                          className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all duration-200"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleMenuToggle(item.id.toString());
+                          }}
+                        >
+                          <MoreHorizontal className="w-5 h-5" />
+                        </button>
+                        
+
+                      </div>
+                    )}
+                    
+                    {/* Student Menu - Keep simple for now */}
+                    {userRole === 'student' && (
+                      <button className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all duration-200">
+                        <MoreHorizontal className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1245,6 +1704,157 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Portal-based dropdown menu */}
+      {openMenuId && menuPosition && createPortal(
+        <div 
+          ref={portalMenuRef}
+          className="fixed bg-white rounded-xl shadow-2xl border border-slate-200/80 py-2 z-[9999] backdrop-blur-sm"
+          style={{
+            left: `${menuPosition.left}px`,
+            top: `${menuPosition.top}px`,
+            width: '224px',
+            maxHeight: '320px',
+            overflowY: 'auto'
+          }}
+        >
+          <div className="px-4 py-3 border-b border-slate-100/80 bg-gradient-to-r from-slate-50/50 to-blue-50/30">
+            <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide flex items-center">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+              Update Status
+            </p>
+          </div>
+          
+          {(() => {
+            const currentItem = filteredDeliverables.find(item => item.id.toString() === openMenuId);
+            if (!currentItem) return null;
+
+            return (
+              <>
+                {currentItem.status !== 'pending' && (
+                  <button
+                    className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50/80 flex items-center space-x-3 transition-all duration-200 hover:translate-x-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      handleAdminStatusUpdate(currentItem, 'pending');
+                    }}
+                  >
+                    <div className="w-3 h-3 bg-gray-400 rounded-full shadow-sm"></div>
+                    <span className="font-medium">Mark as Pending</span>
+                  </button>
+                )}
+                
+                {currentItem.status !== 'in_progress' && (
+                  <button
+                    className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-yellow-50/80 flex items-center space-x-3 transition-all duration-200 hover:translate-x-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      handleAdminStatusUpdate(currentItem, 'in_progress');
+                    }}
+                  >
+                    <div className="w-3 h-3 bg-yellow-400 rounded-full shadow-sm"></div>
+                    <span className="font-medium">Mark as In Progress</span>
+                  </button>
+                )}
+                
+                {currentItem.status !== 'under_review' && (
+                  <button
+                    className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-blue-50/80 flex items-center space-x-3 transition-all duration-200 hover:translate-x-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      handleAdminStatusUpdate(currentItem, 'under_review');
+                    }}
+                  >
+                    <div className="w-3 h-3 bg-blue-400 rounded-full shadow-sm"></div>
+                    <span className="font-medium">Mark as Under Review</span>
+                  </button>
+                )}
+                
+                {currentItem.status !== 'completed' && (
+                  <button
+                    className="w-full text-left px-4 py-3 text-sm text-green-700 hover:bg-green-50/80 flex items-center space-x-3 transition-all duration-200 hover:translate-x-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      handleAdminStatusUpdate(currentItem, 'completed');
+                    }}
+                  >
+                    <div className="w-3 h-3 bg-green-400 rounded-full shadow-sm"></div>
+                    <span className="font-medium">Mark as Completed</span>
+                  </button>
+                )}
+
+                {/* Approve Option - Sets deliverable as completed and approved */}
+                {(currentItem.status === 'under_review' || currentItem.status === 'completed') && !currentItem.approved && (
+                  <div className="border-t border-slate-100/60 mt-1 pt-1">
+                    <button
+                      className="w-full text-left px-4 py-3 text-sm text-green-700 hover:bg-gradient-to-r hover:from-green-50 hover:to-green-100/50 flex items-center space-x-3 transition-all duration-200 font-medium hover:translate-x-1"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+  
+                        handleApproveDeliverable(currentItem);
+                      }}
+                    >
+                      <div className="flex items-center justify-center w-5 h-5 bg-gradient-to-r from-green-100 to-green-200 rounded-full shadow-sm">
+                        <svg className="w-3 h-3 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span className="font-semibold text-green-800">✨ Approve Deliverable</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Reject Option - Sets deliverable as needs_revision */}
+                {(currentItem.status === 'under_review' || currentItem.status === 'completed') && (
+                  <div className="border-t border-slate-100/60 mt-1 pt-1">
+                    <button
+                      className="w-full text-left px-4 py-3 text-sm text-red-700 hover:bg-gradient-to-r hover:from-red-50 hover:to-red-100/50 flex items-center space-x-3 transition-all duration-200 font-medium hover:translate-x-1"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+  
+                        handleRejectDeliverable(currentItem);
+                      }}
+                    >
+                      <div className="flex items-center justify-center w-5 h-5 bg-gradient-to-r from-red-100 to-red-200 rounded-full shadow-sm">
+                        <svg className="w-3 h-3 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <span className="font-semibold text-red-800">❌ Reject Deliverable</span>
+                    </button>
+                  </div>
+                )}
+                
+                {currentItem.status !== 'needs_revision' && (
+                  <button
+                    className="w-full text-left px-4 py-3 text-sm text-orange-700 hover:bg-orange-50/80 flex items-center space-x-3 transition-all duration-200 hover:translate-x-1"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      handleAdminStatusUpdate(currentItem, 'rejected');
+                    }}
+                  >
+                    <div className="w-3 h-3 bg-orange-400 rounded-full shadow-sm"></div>
+                    <span className="font-medium">Reject Deliverable</span>
+                  </button>
+                )}
+              </>
+            );
+          })()}
+        </div>,
+        document.body
       )}
       </div>
     </div>

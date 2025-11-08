@@ -43,6 +43,8 @@ import {
   Minimize2
 } from 'lucide-react';
 import { toast } from "sonner";
+import { StudentProfile } from '../services/profileService';
+
 
 interface Task {
   id: string;
@@ -87,6 +89,11 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
   const [showNotes, setShowNotes] = useState(false);
   const [notes, setNotes] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+  // Student information state
+  const [studentInfo, setStudentInfo] = useState<StudentProfile | null>(null);
+  const [studentLoading, setStudentLoading] = useState(false);
+  const [studentError, setStudentError] = useState<string | null>(null);
 
   // Close modal on escape key
   useEffect(() => {
@@ -149,6 +156,13 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
     // This would typically navigate to the messaging system with the student pre-selected
   };
 
+  const handleContactAdmin = () => {
+    window.open('mailto:thegradhelper@outlook.com?subject=Task%20Support%20Request&body=Hello%20TheGradHelper%20Team,%0D%0A%0D%0AI%20need%20assistance%20with%20my%20task:%0D%0ATask%20ID:%20' + encodeURIComponent(task.id) + '%0D%0ATask%20Title:%20' + encodeURIComponent(task.title) + '%0D%0A%0D%0APlease%20describe%20your%20issue:%0D%0A', '_blank');
+    toast.success('Opening email to contact admin', {
+      description: 'Composing email to thegradhelper@outlook.com',
+    });
+  };
+
   const handleCopyTaskId = () => {
     navigator.clipboard.writeText(task.id);
     toast.success('Task ID copied to clipboard');
@@ -171,14 +185,121 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
     toast.info('Exporting task details...');
   };
 
+  // Fetch student information from backend
+  const fetchStudentInfo = async () => {
+    if (!task.student.id) {
+      setStudentError('No student ID available');
+      return;
+    }
+
+    setStudentLoading(true);
+    setStudentError(null);
+
+    try {
+      console.log(' TaskDetailModal: Fetching student info for ID:', task.student.id);
+      
+      // Make API call to fetch student profile by ID
+      const response = await fetch(`${API_BASE_URL}/auth/profile/${task.student.id}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('gradhelper_token')}`,
+        },
+      });
+
+      console.log('📡 TaskDetailModal: Student info response status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch student info: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('📊 TaskDetailModal: Raw student data received:', data);
+
+      // Parse the response based on the backend structure
+      let studentProfile: StudentProfile;
+      
+      if (data.status === 'success' && data.user) {
+        // Backend structure: {status: 'success', user: {...}}
+        const userData = data.user;
+        const profileData = userData.profile || {};
+        
+        studentProfile = {
+          id: userData.id?.toString() || '',
+          name: userData.username || `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Unknown User',
+          email: userData.email,
+          avatar: userData.avatar || '',
+          role: (userData.role || 'student') as 'student' | 'admin',
+          profile: {
+            isComplete: profileData.isComplete || false,
+            firstName: profileData.first_name || userData.first_name,
+            lastName: profileData.last_name || userData.last_name,
+            dateOfBirth: profileData.date_of_birth || profileData.dateOfBirth,
+            phoneNumber: profileData.phone || profileData.phoneNumber,
+            address: profileData.address,
+            city: profileData.city,
+            state: profileData.state,
+            zipCode: profileData.zip_code || profileData.zipCode,
+            country: profileData.country,
+            university: profileData.institution || profileData.university,
+            major: profileData.major,
+            yearOfStudy: profileData.academic_level || profileData.yearOfStudy,
+            gpa: profileData.gpa,
+            expectedGraduation: profileData.graduation_year?.toString() || profileData.expectedGraduation,
+            academicGoals: profileData.bio || profileData.academicGoals,
+            subjectAreas: profileData.subjectAreas,
+            availabilityHours: profileData.availabilityHours,
+            communicationPreference: profileData.preferences?.communication || profileData.communicationPreference,
+            notificationSettings: {
+              taskUpdates: profileData.preferences?.notifications || profileData.notificationSettings?.taskUpdates,
+              deadlineReminders: profileData.notificationSettings?.deadlineReminders,
+              paymentAlerts: profileData.notificationSettings?.paymentAlerts,
+              partnershipRequests: profileData.notificationSettings?.partnershipRequests,
+            },
+          }
+        };
+      } else {
+        throw new Error('Invalid response format from server');
+      }
+
+      console.log('✅ TaskDetailModal: Parsed student profile:', studentProfile);
+      setStudentInfo(studentProfile);
+      
+      toast.success('Student information loaded', {
+        description: `Loaded profile for ${studentProfile.name}`
+      });
+
+    } catch (error) {
+      console.error('❌ TaskDetailModal: Error fetching student info:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch student information';
+      setStudentError(errorMessage);
+      
+      toast.error('Failed to load student information', {
+        description: errorMessage
+      });
+    } finally {
+      setStudentLoading(false);
+    }
+  };
+
+  // Handle tab change and fetch student info when student tab is selected
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId);
+    
+    // Fetch student info when student tab is selected
+    if (tabId === 'student' && !studentInfo && !studentLoading) {
+      fetchStudentInfo();
+    }
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: FileText, badge: null },
     { id: 'deliverables', label: 'Deliverables', icon: CheckCircle, badge: task.deliverables.length },
     { id: 'attachments', label: 'Files', icon: Paperclip, badge: task.attachments?.length || 0 },
     { id: 'student', label: 'Student Info', icon: User, badge: null },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: null },
+    //{ id: 'analytics', label: 'Analytics', icon: BarChart3, badge: null },
     { id: 'timeline', label: 'Timeline', icon: Clock, badge: null },
-    { id: 'notes', label: 'Notes', icon: BookOpen, badge: null }
+    //{ id: 'notes', label: 'Notes', icon: BookOpen, badge: null }
   ];
 
   const mockStudentInfo = {
@@ -307,7 +428,7 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => handleTabChange(tab.id)}
                   className={`flex items-center space-x-2 px-6 py-4 border-b-2 transition-all duration-200 whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'border-blue-500 text-blue-600 bg-blue-50/50'
@@ -449,6 +570,26 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
                   </button>
                 </div>
               )}
+              
+              {/* Student Action Buttons */}
+              {userRole === 'student' && (
+                <div className="flex justify-center space-x-3 pt-4 border-t border-gray-200">
+                  <button 
+                    onClick={handleContactAdmin}
+                    className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>Contact Admin</span>
+                  </button>
+                  <button 
+                    onClick={handleDownloadAll}
+                    className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Files</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -584,68 +725,181 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
 
           {activeTab === 'student' && (
             <div className="p-6">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <User className="w-5 h-5 text-blue-600" />
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <User className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-800">Student Information</h3>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800">Student Information</h3>
+                {studentInfo && (
+                  <button
+                    onClick={fetchStudentInfo}
+                    disabled={studentLoading}
+                    className="px-3 py-1.5 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors flex items-center space-x-1"
+                  >
+                    <Loader2 className={`w-3 h-3 ${studentLoading ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </button>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Student Profile Card */}
-                <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl p-6 border border-gray-200/50">
-                  <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                      <User className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-800">{task.student.name}</h4>
-                      <p className="text-sm text-gray-600">{task.student.email}</p>
+              {/* Loading State */}
+              {studentLoading && !studentInfo && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center space-y-4">
+                    <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
+                    <p className="text-gray-600">Loading student information...</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Error State */}
+              {studentError && !studentInfo && (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center space-y-4">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
+                      <h4 className="text-red-900 font-semibold mb-2">Failed to Load Student Info</h4>
+                      <p className="text-red-700 text-sm mb-4">{studentError}</p>
+                      <button
+                        onClick={fetchStudentInfo}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 mx-auto"
+                      >
+                        <Loader2 className="w-4 h-4" />
+                        <span>Retry</span>
+                      </button>
                     </div>
                   </div>
+                </div>
+              )}
 
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <Mail className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm text-gray-700">{task.student.email}</span>
-                    </div>
-                    {mockStudentInfo.phone && (
-                      <div className="flex items-center space-x-3">
-                        <Phone className="w-4 h-4 text-gray-500" />
-                        <span className="text-sm text-gray-700">{mockStudentInfo.phone}</span>
+              {/* Student Information Content */}
+              {studentInfo && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Student Profile Card */}
+                  <div className="bg-gradient-to-br from-white to-blue-50/30 rounded-xl p-6 border border-gray-200/50">
+                    <div className="flex items-center space-x-4 mb-4">
+                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                        {studentInfo.avatar ? (
+                          <img 
+                            src={studentInfo.avatar} 
+                            alt={studentInfo.name}
+                            className="w-12 h-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <User className="w-6 h-6 text-blue-600" />
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-800">{studentInfo.name}</h4>
+                        <p className="text-sm text-gray-600">{studentInfo.email}</p>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium mt-1 ${
+                          studentInfo.role === 'admin' 
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {studentInfo.role}
+                        </span>
+                      </div>
+                    </div>
 
-                {/* Academic Information Card */}
-                <div className="bg-gradient-to-br from-white to-green-50/30 rounded-xl p-6 border border-gray-200/50">
-                  <div className="flex items-center space-x-3 mb-4">
-                    <div className="p-2 bg-green-100 rounded-lg">
-                      <GraduationCap className="w-5 h-5 text-green-600" />
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <Mail className="w-4 h-4 text-gray-500" />
+                        <span className="text-sm text-gray-700">{studentInfo.email}</span>
+                      </div>
+                      {studentInfo.profile.phoneNumber && (
+                        <div className="flex items-center space-x-3">
+                          <Phone className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-700">{studentInfo.profile.phoneNumber}</span>
+                        </div>
+                      )}
+                      {studentInfo.profile.country && (
+                        <div className="flex items-center space-x-3">
+                          <MapPin className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm text-gray-700">
+                            {studentInfo.profile.city && `${studentInfo.profile.city}, `}
+                            {studentInfo.profile.country}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                    <h4 className="font-semibold text-gray-800">Academic Details</h4>
                   </div>
 
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">University</label>
-                      <p className="text-sm text-gray-700 mt-1">{mockStudentInfo.university}</p>
+                  {/* Academic Information Card */}
+                  <div className="bg-gradient-to-br from-white to-green-50/30 rounded-xl p-6 border border-gray-200/50">
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <GraduationCap className="w-5 h-5 text-green-600" />
+                      </div>
+                      <h4 className="font-semibold text-gray-800">Academic Details</h4>
                     </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Course</label>
-                      <p className="text-sm text-gray-700 mt-1">{mockStudentInfo.course}</p>
-                    </div>
-                    <div>
-                      <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Year</label>
-                      <p className="text-sm text-gray-700 mt-1">{mockStudentInfo.year}</p>
+
+                    <div className="space-y-3">
+                      {studentInfo.profile.university && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">University</label>
+                          <p className="text-sm text-gray-700 mt-1">{studentInfo.profile.university}</p>
+                        </div>
+                      )}
+                      {studentInfo.profile.major && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Major</label>
+                          <p className="text-sm text-gray-700 mt-1">{studentInfo.profile.major}</p>
+                        </div>
+                      )}
+                      {studentInfo.profile.yearOfStudy && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Academic Level</label>
+                          <p className="text-sm text-gray-700 mt-1">{studentInfo.profile.yearOfStudy}</p>
+                        </div>
+                      )}
+                      {studentInfo.profile.expectedGraduation && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Expected Graduation</label>
+                          <p className="text-sm text-gray-700 mt-1">{studentInfo.profile.expectedGraduation}</p>
+                        </div>
+                      )}
+                      {studentInfo.profile.gpa && (
+                        <div>
+                          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">GPA</label>
+                          <p className="text-sm text-gray-700 mt-1">{studentInfo.profile.gpa}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Additional Information Card */}
+                  {(studentInfo.profile.academicGoals || studentInfo.profile.communicationPreference) && (
+                    <div className="lg:col-span-2 bg-gradient-to-br from-white to-purple-50/30 rounded-xl p-6 border border-gray-200/50">
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <Target className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <h4 className="font-semibold text-gray-800">Additional Information</h4>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {studentInfo.profile.academicGoals && (
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Bio / Academic Goals</label>
+                            <p className="text-sm text-gray-700 mt-1 leading-relaxed">{studentInfo.profile.academicGoals}</p>
+                          </div>
+                        )}
+                        {studentInfo.profile.communicationPreference && (
+                          <div>
+                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">Communication Preference</label>
+                            <p className="text-sm text-gray-700 mt-1 capitalize">{studentInfo.profile.communicationPreference}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
 
               {/* Contact Actions */}
-              {userRole === 'admin' && (
+              {userRole === 'admin' && studentInfo && (
                 <div className="flex justify-center space-x-3 mt-6 pt-6 border-t border-gray-200">
                   <button 
                     onClick={handleContactStudent}
@@ -654,9 +908,32 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
                     <MessageCircle className="w-4 h-4" />
                     <span>Send Message</span>
                   </button>
-                  <button className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm">
+                  <button 
+                    onClick={() => window.open(`mailto:${studentInfo.email}`, '_blank')}
+                    className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm"
+                  >
                     <Mail className="w-4 h-4" />
                     <span>Send Email</span>
+                  </button>
+                </div>
+              )}
+              
+              {/* Student Contact Actions */}
+              {userRole === 'student' && (
+                <div className="flex justify-center space-x-3 mt-6 pt-6 border-t border-gray-200">
+                  <button 
+                    onClick={handleContactAdmin}
+                    className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm"
+                  >
+                    <Mail className="w-4 h-4" />
+                    <span>Contact Admin</span>
+                  </button>
+                  <button 
+                    onClick={() => toast.info('Profile editing will be available in the Profile section')}
+                    className="px-6 py-2.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors flex items-center space-x-2 shadow-sm"
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Edit Profile</span>
                   </button>
                 </div>
               )}

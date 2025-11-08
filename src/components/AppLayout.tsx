@@ -25,6 +25,41 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 import logoImage from '../assets/71eefff8a544630cca22726eead746724ce853a1.png';
 import dropdownImage from '../assets/af259eb6acf8efd20829570c4c334971fdbcab54.png';
 
+// Utility function to generate initials from user name
+const getUserInitials = (name: string | undefined): string => {
+  if (!name) return 'U';
+  
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) {
+    return words[0].charAt(0).toUpperCase();
+  }
+  
+  return (words[0].charAt(0) + words[words.length - 1].charAt(0)).toUpperCase();
+};
+
+// Utility function to generate a consistent color for initials based on name
+const getInitialsColor = (name: string | undefined): string => {
+  if (!name) return 'bg-gray-500';
+  
+  const colors = [
+    'bg-blue-500',
+    'bg-green-500', 
+    'bg-purple-500',
+    'bg-red-500',
+    'bg-yellow-500',
+    'bg-indigo-500',
+    'bg-pink-500',
+    'bg-teal-500'
+  ];
+  
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  
+  return colors[Math.abs(hash) % colors.length];
+};
+
 interface AppLayoutProps {
   children: React.ReactNode;
   userRole: 'student' | 'admin';
@@ -123,11 +158,9 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
         <div className="p-6 bg-gradient-to-b from-blue-50 to-white border-b border-gray-200">
           <div className="flex items-center space-x-4">
             <div className="relative">
-              <img 
-                src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=48&h=48&fit=crop&crop=face"} 
-                alt="User" 
-                className="w-12 h-12 rounded-full border-2 border-white shadow-md"
-              />
+              <div className={`w-12 h-12 rounded-full border-2 border-white shadow-md flex items-center justify-center text-white font-bold text-lg ${getInitialsColor(user?.name)}`}>
+                {getUserInitials(user?.name)}
+              </div>
               <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
             </div>
             <div className="flex-1 min-w-0">
@@ -259,11 +292,9 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center space-x-3 p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                    <img 
-                      src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face"} 
-                      alt="User" 
-                      className="w-8 h-8 rounded-full border border-gray-300"
-                    />
+                    <div className={`w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-white font-medium text-sm ${getInitialsColor(user?.name)}`}>
+                      {getUserInitials(user?.name)}
+                    </div>
                     <div className="hidden md:block text-left">
                       <p className="text-sm font-medium text-gray-900">{user?.name || 'User'}</p>
                       <p className="text-xs text-gray-500 capitalize">{userRole}</p>

@@ -36,7 +36,9 @@ import {
   BookOpen,
   GraduationCap,
   Target,
-  Save
+  Save,
+  Receipt,
+  CreditCard
 } from 'lucide-react';
 import { toast } from "sonner";
 
@@ -49,6 +51,10 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [assignedAdminFilter, setAssignedAdminFilter] = useState('all');
+  const [studentFilter, setStudentFilter] = useState('all');
   const [showTaskDetail, setShowTaskDetail] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -59,8 +65,10 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showFileDeleteModal, setShowFileDeleteModal] = useState(false);
   const [showFileStagingModal, setShowFileStagingModal] = useState(false);
+  const [showBillModal, setShowBillModal] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [billingTask, setBillingTask] = useState<Task | null>(null);
   const [deletingFile, setDeletingFile] = useState<{
     taskId: string;
     attachmentId: string;
@@ -90,6 +98,14 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     type: ''
   });
 
+  // Bill form state
+  const [billForm, setBillForm] = useState({
+    amount: 0,
+    dueDate: '',
+    description: '',
+    notes: 'Payment terms and conditions'
+  });
+
   // File handling state for edit modal
   const [editFiles, setEditFiles] = useState<File[]>([]);
   const [editExistingFiles, setEditExistingFiles] = useState<any[]>([]);
@@ -106,11 +122,17 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     refreshTasks,
     updateTask,
     updateTaskStatus,
+    updateAdminTaskStatus,
     deleteTask,
     assignTask,
   } = useTasks({
     searchTerm,
     statusFilter,
+    userRole,
+    priorityFilter,
+    typeFilter,
+    assignedAdminFilter,
+    studentFilter,
   });
 
   // Close menu when clicking outside
@@ -428,7 +450,11 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
 
   const handleTaskRejection = async (taskId: string, reason: string, feedback: string) => {
     try {
-      await updateTaskStatus(taskId, 'rejected', reason, feedback);
+      if (userRole === 'admin') {
+        await updateAdminTaskStatus(taskId, 'rejected', reason, feedback);
+      } else {
+        await updateTaskStatus(taskId, 'rejected', reason, feedback);
+      }
       
       // Close modals
       setShowRejectModal(false);
@@ -449,7 +475,35 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     setOpenMenuId(null);
   };
 
+  const handleContactAdmin = (task: Task) => {
+    window.open('mailto:thegradhelper@outlook.com?subject=Task%20Support%20Request&body=Hello%20TheGradHelper%20Team,%0D%0A%0D%0AI%20need%20assistance%20with%20my%20task:%0D%0ATask%20ID:%20' + encodeURIComponent(task.id) + '%0D%0ATask%20Title:%20' + encodeURIComponent(task.title) + '%0D%0A%0D%0APlease%20describe%20your%20issue:%0D%0A', '_blank');
+    toast.success('Opening email to contact admin', {
+      description: 'Composing email to thegradhelper@outlook.com',
+    });
+    setOpenMenuId(null);
+  };
 
+
+
+  const handleMarkInProgress = async (task: Task) => {
+    if (task.status === 'in_progress') {
+      toast.info('Task is already marked as in progress');
+      setOpenMenuId(null);
+      return;
+    }
+
+    try {
+      if (userRole === 'admin') {
+        await updateAdminTaskStatus(task.id, 'in_progress');
+      } else {
+        await updateTaskStatus(task.id, 'in_progress');
+      }
+    } catch (error) {
+      console.error('Error marking task as in progress:', error);
+    }
+    
+    setOpenMenuId(null);
+  };
 
   const handleMarkComplete = async (task: Task) => {
     if (task.status === 'completed') {
@@ -459,7 +513,11 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     }
 
     try {
-      await updateTaskStatus(task.id, 'completed');
+      if (userRole === 'admin') {
+        await updateAdminTaskStatus(task.id, 'completed');
+      } else {
+        await updateTaskStatus(task.id, 'completed');
+      }
     } catch (error) {
       console.error('Error marking task as complete:', error);
     }
@@ -685,6 +743,117 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     return fileService.canPreviewFile(fileName, mimeType);
   };
 
+  // Handle create bill for task
+  const handleCreateBill = (task: Task) => {
+    setBillingTask(task);
+    setBillForm({
+      amount: task.budget || 0,
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+      description: `Payment for ${task.title}`,
+      notes: 'Payment terms and conditions'
+    });
+    setShowBillModal(true);
+    setOpenMenuId(null);
+  };
+
+  // Submit bill creation
+  const handleSubmitBill = async (e: React.FormEvent) => {
+    e.preventDefault(); // Prevent form submission and page refresh
+    if (!billingTask) return;
+
+    try {
+      setUpdateLoading(true);
+      
+      const token = localStorage.getItem('gradhelper_token');
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+
+      const billData = {
+        taskId: billingTask.id,
+        studentId: billingTask.student.id,
+        description: billForm.description,
+        status: 'pending',
+        dueDate: billForm.dueDate,
+        notes: billForm.notes,
+        student: billingTask.student.name,
+        amount: billForm.amount.toString(),
+        taskTitle: billingTask.title
+      };
+
+      const response = await fetch(`${API_BASE_URL}/admin/bills/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+        body: JSON.stringify(billData),
+      });
+
+      let result;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const htmlText = await response.text();
+        console.error('Server returned HTML instead of JSON:', htmlText);
+        result = { 
+          error: 'Server error - received HTML response instead of JSON',
+          html_content: htmlText.substring(0, 200) + '...'
+        };
+      }
+      
+      console.log('Bill Creation API Response:', response.status, result);
+
+      if (response.ok) {
+        setShowBillModal(false);
+        setBillingTask(null);
+        setBillForm({
+          amount: 0,
+          dueDate: '',
+          description: '',
+          notes: 'Payment terms and conditions'
+        });
+        
+        toast.success('Bill created successfully', {
+          description: `Bill for "${billingTask.title}" has been created and sent to ${billingTask.student.name}.`,
+        });
+      } else {
+        console.error('API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: result
+        });
+        
+        let errorMessage = 'Failed to create bill';
+        
+        if (result.detail) {
+          errorMessage = result.detail;
+        } else if (result.message) {
+          errorMessage = result.message;
+        } else if (result.error) {
+          errorMessage = result.error;
+        } else if (typeof result === 'object') {
+          const fieldErrors = Object.entries(result)
+            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+            .join('; ');
+          if (fieldErrors) errorMessage = fieldErrors;
+        }
+        
+        toast.error(`Bill creation failed (${response.status})`, {
+          description: errorMessage
+        });
+      }
+      
+    } catch (error) {
+      console.error('Bill creation error:', error);
+      toast.error('Network error', {
+        description: 'Unable to connect to the server. Please check your connection and try again.'
+      });
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Professional Header Section */}
@@ -732,50 +901,105 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Professional Controls Panel */}
+        {/* Enhanced Professional Controls Panel */}
         <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/60 p-6">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search tasks by title, subject, or student..."
-                  className="pl-12 pr-6 py-3 border border-slate-200 rounded-xl w-80 bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
-                  value={searchTerm}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                />
+          <div className="flex flex-col gap-6">
+            {/* Primary Filters Row */}
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+              <div className="flex items-center space-x-4 flex-wrap">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                  <input
+                    type="text"
+                    placeholder={userRole === 'admin' 
+                      ? "Search tasks by title, subject, student, or admin..." 
+                      : "Search tasks by title, subject, or student..."}
+                    className="pl-12 pr-6 py-3 border border-slate-200 rounded-xl w-80 bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                    value={searchTerm}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                  />
+                </div>
+                
+                <select
+                  className="px-4 py-3 border border-slate-200 rounded-xl bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                  value={statusFilter}
+                  onChange={(e) => handleStatusFilterChange(e.target.value)}
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">📋 Pending</option>
+                  <option value="in_progress">⚡ In Progress</option>
+                  <option value="completed">✅ Completed</option>
+                  <option value="revision_needed">🔄 Needs Revision</option>
+                  <option value="rejected">❌ Rejected</option>
+                </select>
               </div>
-              
-              <select
-                className="px-4 py-3 border border-slate-200 rounded-xl bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
-                value={statusFilter}
-                onChange={(e) => handleStatusFilterChange(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="pending"> Pending</option>
-                <option value="in_progress"> In Progress</option>
-                <option value="completed"> Completed</option>
-                <option value="revision_needed"> Needs Revision</option>
-                <option value="rejected"> Rejected</option>
-              </select>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={handleRefresh}
+                  disabled={loading}
+                  className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Refresh tasks"
+                >
+                  {loading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-5 h-5" />
+                  )}
+                  <span className="hidden sm:inline">Refresh</span>
+                </button>
+              </div>
             </div>
 
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleRefresh}
-                disabled={loading}
-                className="flex items-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Refresh tasks"
-              >
-                {loading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-5 h-5" />
-                )}
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
-            </div>
+            {/* Admin-only Advanced Filters */}
+            {userRole === 'admin' && (
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex items-center space-x-2 mb-3">
+                  <Filter className="w-5 h-5 text-slate-600" />
+                  <h3 className="text-sm font-semibold text-slate-700">Advanced Filters</h3>
+                </div>
+                <div className="flex items-center space-x-4 flex-wrap gap-2">
+                  <select
+                    className="px-3 py-2 border border-slate-200 rounded-lg bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-sm"
+                    value={priorityFilter}
+                    onChange={(e) => setPriorityFilter(e.target.value)}
+                  >
+                    <option value="all">All Priorities</option>
+                    <option value="high">🔴 High Priority</option>
+                    <option value="medium">🟡 Medium Priority</option>
+                    <option value="low">🟢 Low Priority</option>
+                  </select>
+
+                  <select
+                    className="px-3 py-2 border border-slate-200 rounded-lg bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-sm"
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                  >
+                    <option value="all">All Types</option>
+                    <option value="research">📚 Research</option>
+                    <option value="essay">📝 Essay</option>
+                    <option value="assignment">📋 Assignment</option>
+                    <option value="project">🚀 Project</option>
+                    <option value="thesis">🎓 Thesis</option>
+                  </select>
+
+                  <select
+                    className="px-3 py-2 border border-slate-200 rounded-lg bg-white/50 backdrop-blur-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 text-sm"
+                    value={assignedAdminFilter}
+                    onChange={(e) => setAssignedAdminFilter(e.target.value)}
+                  >
+                    <option value="all">All Admins</option>
+                    <option value="unassigned">🔘 Unassigned</option>
+                    <option value="me">👤 Assigned to Me</option>
+                    {/* TODO: Add specific admin options from API */}
+                  </select>
+
+                  <div className="flex items-center space-x-2 text-sm text-slate-600">
+                    <span>📊 Total: {tasks.length} tasks</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -933,6 +1157,16 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                                   <span>Contact Student</span>
                                 </button>
                                 
+                                {task.status !== 'in_progress' && task.status !== 'completed' && task.status !== 'rejected' && (
+                                  <button 
+                                    className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-50 flex items-center space-x-2"
+                                    onClick={() => handleMarkInProgress(task)}
+                                  >
+                                    <Clock className="w-4 h-4" />
+                                    <span>Mark In Progress</span>
+                                  </button>
+                                )}
+
                                 {task.status !== 'completed' && task.status !== 'rejected' && (
                                   <button 
                                     className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center space-x-2"
@@ -944,18 +1178,26 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                                 )}
                                 
                                 {task.status !== 'rejected' && task.status !== 'completed' && (
-                                  <button 
-                                    className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center space-x-2"
-                                    onClick={() => handleRejectTask(task)}
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                    <span>Reject Task</span>
-                                  </button>
+                                <button 
+                                  className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50 flex items-center space-x-2"
+                                  onClick={() => handleRejectTask(task)}
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  <span>Reject Task</span>
+                                </button>
                                 )}
                                 
                                 <div className="border-t border-slate-100 my-1" />
                                 
                                 <button 
+                                  className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50 flex items-center space-x-2"
+                                  onClick={() => handleCreateBill(task)}
+                                >
+                                  <Receipt className="w-4 h-4" />
+                                  <span>Create Bill</span>
+                                </button>
+                                
+                                <div className="border-t border-slate-100 my-1" />                                <button 
                                   className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
                                   onClick={() => handleEditTask(task)}
                                 >
@@ -977,7 +1219,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                               <>
                                 <button 
                                   className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
-                                  onClick={() => handleContactStudent(task)}
+                                  onClick={() => handleContactAdmin(task)}
                                 >
                                   <MessageSquare className="w-4 h-4" />
                                   <span>Contact Admin</span>
@@ -1149,7 +1391,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                                           </button>
                                         )}
                                         <button
-                                          onClick={() => handleRemoveDeliverableFileDirectly(task.id, deliverable.id, file.id, file.name)}
+                                          onClick={() => handleRemoveDeliverableFileDirectly(task.id.toString(), deliverable.id.toString(), file.id, file.name)}
                                           className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all duration-200 file-action-btn remove"
                                           title="Remove file"
                                         >
@@ -1748,6 +1990,122 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                 <span>Stage for Removal</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Billing Modal */}
+      {showBillModal && billingTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900 flex items-center space-x-2">
+                <Receipt className="w-5 h-5 text-green-600" />
+                <span>Create Bill</span>
+              </h3>
+              <button
+                onClick={() => {
+                  setShowBillModal(false);
+                  setBillingTask(null);
+                  setBillForm({ amount: 0, dueDate: '', description: '', notes: '' });
+                }}
+                className="text-slate-500 hover:text-slate-700"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+              <h4 className="font-medium text-slate-900">{billingTask.title}</h4>
+              <p className="text-sm text-slate-600 mt-1">{billingTask.description}</p>
+              <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500">
+                <span>Client: {billingTask.student.name}</span>
+                <span>Status: {billingTask.status}</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitBill} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Amount ($) *
+                </label>
+                <input
+                  type="number"
+                  value={billForm.amount}
+                  onChange={(e) => setBillForm({ ...billForm, amount: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                  step="0.01"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Due Date *
+                </label>
+                <input
+                  type="date"
+                  value={billForm.dueDate}
+                  onChange={(e) => setBillForm({ ...billForm, dueDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Description *
+                </label>
+                <textarea
+                  value={billForm.description}
+                  onChange={(e) => setBillForm({ ...billForm, description: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder="Brief description of the service..."
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Additional Notes
+                </label>
+                <textarea
+                  value={billForm.notes}
+                  onChange={(e) => setBillForm({ ...billForm, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={2}
+                  placeholder="Optional notes..."
+                />
+              </div>
+
+              <div className="flex space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowBillModal(false);
+                    setBillingTask(null);
+                    setBillForm({ amount: 0, dueDate: '', description: '', notes: '' });
+                  }}
+                  className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateLoading}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50"
+                >
+                  {updateLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <CreditCard className="w-4 h-4" />
+                  )}
+                  <span>Create Bill</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

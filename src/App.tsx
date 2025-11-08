@@ -24,6 +24,7 @@ import { AccomplishmentsView } from './components/AccomplishmentsView';
 import { NotificationProvider } from './components/NotificationContext';
 import { Toaster } from './components/ui/sonner';
 import { toast } from "sonner";
+import { profileService, StudentProfile } from './services/profileService';
 import './styles/globals.css';
 import './styles/unified-components.css';
 import './styles/app.css';
@@ -44,17 +45,8 @@ import './styles/messages.css';
 type AppState = 'landing' | 'auth' | 'profile' | 'app';
 type UserRole = 'student' | 'admin';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  role?: UserRole;
-  profile?: {
-    isComplete: boolean;
-    [key: string]: any;
-  };
-}
+// Use the StudentProfile interface from profileService
+interface User extends StudentProfile {}
 
 // Helper function to check if we're in development mode
 const isDevelopment = () => {
@@ -89,16 +81,77 @@ function AppContent() {
   const [currentView, setCurrentView] = useState('dashboard');
 
   // Check for existing session on app load
-  useEffect(() => {
-    const savedUser = localStorage.getItem('gradhelper_user');
-    if (savedUser) {
-      const userData = JSON.parse(savedUser);
-      setUser(userData);
-      setUserRole(userData.role || 'student');
+  // Function to sync user profile from backend
+  const syncUserProfile = async () => {
+    try {
+      if (profileService.isAuthenticated()) {
+        console.log('🔄 App: Syncing user profile from backend...');
+        
+        const freshProfile = await profileService.getStudentProfile();
+        
+        setUser(freshProfile);
+        setUserRole(freshProfile.role || 'student');
+        profileService.cacheProfile(freshProfile);
+        
+        console.log('✅ App: Profile synced successfully:', {
+          userId: freshProfile.id,
+          name: freshProfile.name,
+          profileComplete: freshProfile.profile.isComplete
+        });
+        
+        setAppState('app');
+        
+        return freshProfile;
+      }
+    } catch (error) {
+      console.error('❌ App: Failed to sync profile from backend:', error);
       
-      // Always go to app for existing users - profile completion only required for task posting
-      setAppState('app');
+      // Fall back to cached profile if backend fails
+      const cachedProfile = profileService.getCachedProfile();
+      if (cachedProfile) {
+        setUser(cachedProfile);
+        setUserRole(cachedProfile.role || 'student');
+        setAppState('app');
+        
+        toast.warning('Using Offline Profile', {
+          description: 'Could not sync with server. Using cached profile data.'
+        });
+        
+        return cachedProfile;
+      }
+      
+      // If no cached profile either, user needs to authenticate
+      toast.error('Authentication Required', {
+        description: 'Please sign in to access your account.'
+      });
+      
+      setAppState('auth');
+      return null;
     }
+  };
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      const savedUser = localStorage.getItem('gradhelper_user');
+      const hasToken = profileService.isAuthenticated();
+      
+      if (savedUser && hasToken) {
+        // Try to sync fresh profile from backend
+        await syncUserProfile();
+      } else if (savedUser) {
+        // Has cached profile but no token - need to re-authenticate
+        const userData = JSON.parse(savedUser);
+        toast.info('Session Expired', {
+          description: 'Please sign in again to continue.'
+        });
+        setAppState('auth');
+      } else {
+        // No saved user - stay on landing page
+        console.log('👋 App: New user - showing landing page');
+      }
+    };
+
+    initializeApp();
   }, []);
 
   const handleGetStarted = () => {
@@ -138,7 +191,10 @@ function AppContent() {
     }
   };
 
-  const handleAuth = (userData: User) => {
+  const handleAuth = async (userData: User) => {
+    console.log('🔐 App: User authenticated, syncing profile from backend...');
+    
+    // First set the basic user data
     const userWithRole = {
       ...userData,
       role: userData.role || userRole,
@@ -148,10 +204,30 @@ function AppContent() {
     setUserRole(userWithRole.role || 'student');
     localStorage.setItem('gradhelper_user', JSON.stringify(userWithRole));
     
-    // Show success toast
+    // Show welcome toast
     toast.success(`Welcome to TheGradHelper, ${userData.name}!`, {
-      description: "You can explore the platform and complete your profile later when posting tasks."
+      description: "Loading your profile..."
     });
+    
+    try {
+      // Sync fresh profile from backend
+      const freshProfile = await syncUserProfile();
+      
+      if (freshProfile) {
+        toast.success('Profile Loaded Successfully!', {
+          description: freshProfile.profile.isComplete 
+            ? "Your profile is complete. You can access all features."
+            : "You can explore the platform and complete your profile later when posting tasks."
+        });
+      }
+    } catch (error) {
+      console.error('❌ App: Failed to sync profile after auth:', error);
+      
+      // Continue with basic profile if sync fails
+      toast.warning('Profile Sync Warning', {
+        description: "Using basic profile data. Some features may be limited."
+      });
+    }
     
     // Go directly to the app - no forced profile completion
     setAppState('app');
@@ -163,15 +239,34 @@ function AppContent() {
     }
   };
 
-  const handleProfileComplete = (completedUser: User) => {
-    setUser(completedUser);
-    localStorage.setItem('gradhelper_user', JSON.stringify(completedUser));
-    setAppState('app');
+  const handleProfileComplete = async (completedUser: User) => {
+    console.log('📝 App: Profile completed, syncing with backend...');
     
-    // Show success toast
-    toast.success("Profile completed successfully!", {
-      description: "You can now post tasks and access all features of TheGradHelper."
-    });
+    try {
+      // Update profile on backend
+      const updatedProfile = await profileService.updateStudentProfile(completedUser.profile);
+      
+      setUser(updatedProfile);
+      profileService.cacheProfile(updatedProfile);
+      setAppState('app');
+      
+      // Show success toast
+      toast.success("Profile completed successfully!", {
+        description: "You can now post tasks and access all features of TheGradHelper."
+      });
+      
+    } catch (error) {
+      console.error('❌ App: Failed to sync completed profile:', error);
+      
+      // Fall back to local update if backend fails
+      setUser(completedUser);
+      localStorage.setItem('gradhelper_user', JSON.stringify(completedUser));
+      setAppState('app');
+      
+      toast.warning("Profile Saved Locally", {
+        description: "Profile completed but couldn't sync with server. Will sync when connection is restored."
+      });
+    }
     
     // If they came from post task, redirect there
     if (currentView === 'post-task') {
