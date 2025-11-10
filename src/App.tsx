@@ -22,6 +22,7 @@ import { HelpSupportView } from './components/HelpSupportView';
 import { PartnershipRequestsView } from './components/PartnershipRequestsView';
 import { AccomplishmentsView } from './components/AccomplishmentsView';
 import { NotificationProvider } from './components/NotificationContext';
+import { StripeProvider } from './components/StripeProvider';
 import { Toaster } from './components/ui/sonner';
 import { toast } from "sonner";
 import { profileService, StudentProfile } from './services/profileService';
@@ -452,13 +453,15 @@ function AppContent() {
 export default function App() {
   return (
     <NotificationProvider>
-      <AppContent />
-      <Toaster 
-        position="top-right"
-        expand={true}
-        richColors={true}
-        closeButton={true}
-      />
+      <StripeProvider>
+        <AppContent />
+        <Toaster 
+          position="top-right"
+          expand={true}
+          richColors={true}
+          closeButton={true}
+        />
+      </StripeProvider>
     </NotificationProvider>
   );
 }

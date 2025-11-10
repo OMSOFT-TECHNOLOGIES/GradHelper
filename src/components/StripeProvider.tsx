@@ -2,22 +2,29 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { ReactNode } from 'react';
 
-// Stripe publishable key - replace with your actual key from Stripe Dashboard
-// For development: use your test publishable key (starts with pk_test_)
-// For production: use your live publishable key (starts with pk_live_)
+// Stripe publishable key - get from environment variables
 const getStripePublishableKey = () => {
-  // Try to get from environment variables if available
+  // Primary: Get from React environment variable
+  if (process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY) {
+    return process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
+  }
+  
+  // Secondary: Get from window object if set by server
   if (typeof window !== 'undefined' && (window as any).STRIPE_PUBLISHABLE_KEY) {
     return (window as any).STRIPE_PUBLISHABLE_KEY;
   }
   
-  // Fallback for development - replace with your actual test key
-  return 'pk_test_51234567890abcdef_test_key_replace_with_your_actual_key';
+  // Log error if no key found
+  console.error('STRIPE_PUBLISHABLE_KEY not found in environment variables');
+  
+  // Return null to prevent Stripe initialization with invalid key
+  return null;
 };
 
 const stripePublishableKey = getStripePublishableKey();
 
-const stripePromise = loadStripe(stripePublishableKey);
+// Only create stripePromise if we have a valid key
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 interface StripeProviderProps {
   children: ReactNode;
@@ -25,6 +32,12 @@ interface StripeProviderProps {
 
 // Basic Stripe provider for the app context
 export function StripeProvider({ children }: StripeProviderProps) {
+  // Don't render Elements if Stripe is not properly configured
+  if (!stripePromise) {
+    console.error('Stripe not initialized - check REACT_APP_STRIPE_PUBLISHABLE_KEY in environment');
+    return <>{children}</>;
+  }
+
   return (
     <Elements stripe={stripePromise}>
       {children}
@@ -40,6 +53,12 @@ interface PaymentElementsProviderProps {
 }
 
 export function PaymentElementsProvider({ children, clientSecret, amount }: PaymentElementsProviderProps) {
+  // Don't render Elements if Stripe is not properly configured
+  if (!stripePromise) {
+    console.error('Stripe not initialized - check REACT_APP_STRIPE_PUBLISHABLE_KEY in environment');
+    return <>{children}</>;
+  }
+
   const options = {
     clientSecret,
     appearance: {

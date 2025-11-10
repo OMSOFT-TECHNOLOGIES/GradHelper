@@ -600,7 +600,17 @@ notes: "Submission notes"
 - `dateFrom`: date
 - `dateTo`: date
 
-### POST /meetings (Admin only)
+### GET /meetings
+**Purpose**: Get all meetings
+**Query Parameters**:
+- `page`: int
+- `limit`: int
+- `status`: "scheduled|completed|cancelled"
+- `type`: "virtual|in_person"
+- `dateFrom`: date
+- `dateTo`: date
+
+### POST /meetings (Admin/student)
 **Purpose**: Schedule new meeting
 ```json
 {

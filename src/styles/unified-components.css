@@ -427,3 +427,82 @@
     height: 0.875rem;
   }
 }
+
+/* ================================================
+   FORM SECTIONS
+   ================================================ */
+
+.form-section {
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  background-color: #f8fafc;
+  margin-bottom: 1rem;
+}
+
+.form-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334155;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.form-section .form-group {
+  margin-bottom: 1rem;
+}
+
+.form-section .form-group:last-child {
+  margin-bottom: 0;
+}
+
+/* Modal form specific styles */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.modal-form .modal-content {
+  flex: 1;
+  overflow-y: auto;
+  max-height: calc(90vh - 200px);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+}
+
+.modal-form .modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-form .modal-content::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
+
+.modal-form .modal-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.modal-form .modal-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Enhanced mobile modal */
+@media (max-width: 768px) {
+  .modal-form .modal-content {
+    max-height: calc(100vh - 180px);
+  }
+  
+  .form-section {
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  
+  .form-section-title {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+  }
+}
