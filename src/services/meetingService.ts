@@ -370,7 +370,7 @@ class MeetingService {
     completed: number;
   }> {
     try {
-      // This might be a separate endpoint or computed from getMeetings
+      // This might be a separate endpoint or computed from getMeetings without pagination
       const response = await this.getMeetings({ limit: 1000 }); // Get all meetings for stats
       const meetings = response.data;
 
@@ -397,7 +397,7 @@ class MeetingService {
 
       return stats;
     } catch (error) {
-      console.error('Error fetching meeting stats:', error);
+      console.error('Error fetching meeting stats check your connection:', error);
       // Return default stats if API fails
       return { total: 0, upcoming: 0, pending: 0, completed: 0 };
     }
@@ -420,7 +420,7 @@ class MeetingService {
       const today = now.toISOString().split('T')[0];
       
       // Debug: Log date calculations
-      console.log('📊 Meeting Stats Debug:', {
+      console.log('Meeting Stats Debug:', {
         today,
         totalMeetings: meetings.length,
         meetingDates: meetings.map(m => ({ id: m.id, date: m.date, status: m.status, title: m.title }))
