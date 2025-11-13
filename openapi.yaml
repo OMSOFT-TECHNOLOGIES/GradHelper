@@ -1,0 +1,3226 @@
+openapi: 3.0.3
+info:
+  title: TheGradHelper API
+  description: |
+    TheGradHelper is a comprehensive academic assistance platform that connects students with qualified professionals for assignment help, tutoring, and academic support.
+    
+    ## Features
+    - User authentication and profile management
+    - Task creation and management
+    - Real-time messaging and chat
+    - Payment processing with Stripe
+    - Meeting scheduling and management
+    - File upload and management
+    - Partnership requests and admin approval
+    - Notifications and analytics
+    
+    ## Authentication
+    Most endpoints require JWT authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <jwt_token>
+    ```
+    
+    ## Rate Limiting
+    - General APIs: 100 requests per minute per user
+    - File Upload: 10 requests per minute per user
+    - Chat Messages: 30 requests per minute per user
+    - Authentication: 5 requests per minute per IP
+  version: 1.0.0
+  contact:
+    name: TheGradHelper API Support
+    email: api-support@gradhelper.com
+    url: https://gradhelper.com/support
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: https://gradhelper.com/terms
+
+servers:
+  - url: https://api.gradhelper.com/v1
+    description: Production server
+  - url: https://staging-api.gradhelper.com/v1
+    description: Staging server
+  - url: http://localhost:3001/api/v1
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Authentication Endpoints
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                password:
+                  type: string
+                  format: password
+                  example: "password123"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          token:
+                            type: string
+                            description: JWT access token
+                          refreshToken:
+                            type: string
+                            description: Refresh token for token renewal
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: User registration
+      description: Create a new user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - email
+                - password
+                - role
+              properties:
+                name:
+                  type: string
+                  example: "John Doe"
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+                  example: "password123"
+                role:
+                  type: string
+                  enum: [student, admin]
+                  example: "student"
+      responses:
+        '201':
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          token:
+                            type: string
+                          refreshToken:
+                            type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/google:
+    post:
+      tags:
+        - Authentication
+      summary: Google OAuth login
+      description: Authenticate user with Google OAuth token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - googleToken
+                - role
+              properties:
+                googleToken:
+                  type: string
+                  description: Google OAuth access token
+                role:
+                  type: string
+                  enum: [student, admin]
+                  example: "student"
+      responses:
+        '200':
+          description: OAuth login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          token:
+                            type: string
+                          refreshToken:
+                            type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh JWT token
+      description: Get a new JWT token using refresh token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          token:
+                            type: string
+                          refreshToken:
+                            type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Invalidate user session and refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  # User Management Endpoints
+  /users/profile:
+    get:
+      tags:
+        - User Management
+      summary: Get user profile
+      description: Get current user's profile information
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags:
+        - User Management
+      summary: Update user profile
+      description: Update current user's profile information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "John Doe"
+                bio:
+                  type: string
+                  example: "Computer Science student"
+                profile:
+                  type: object
+                  properties:
+                    academicLevel:
+                      type: string
+                      enum: [high_school, undergraduate, graduate, masters, phd, professional]
+                    institution:
+                      type: string
+                      example: "University of Technology"
+                    major:
+                      type: string
+                      example: "Computer Science"
+                    preferences:
+                      type: object
+                      properties:
+                        notifications:
+                          type: boolean
+                        emailUpdates:
+                          type: boolean
+                        theme:
+                          type: string
+                          enum: [light, dark]
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/avatar:
+    post:
+      tags:
+        - User Management
+      summary: Upload user avatar
+      description: Upload and update user's profile avatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - avatar
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: Avatar image file (max 5MB, JPG/PNG)
+      responses:
+        '200':
+          description: Avatar uploaded successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          avatarUrl:
+                            type: string
+                            format: uri
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Task Management Endpoints
+  /tasks:
+    get:
+      tags:
+        - Task Management
+      summary: Get tasks
+      description: Get user's tasks (filtered by role)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, revision_needed, rejected]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [created_at, due_date, title]
+            default: created_at
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Tasks retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          tasks:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Task'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Task Management
+      summary: Create task
+      description: Create a new task (Student only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskRequest'
+      responses:
+        '201':
+          description: Task created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /tasks/{taskId}:
+    get:
+      tags:
+        - Task Management
+      summary: Get task details
+      description: Get specific task details
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Task Management
+      summary: Update task
+      description: Update task details
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                deadline:
+                  type: string
+                  format: date-time
+                requirements:
+                  type: string
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Task Management
+      summary: Delete task
+      description: Delete/cancel task
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Reason for cancellation
+      responses:
+        '200':
+          description: Task deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # File Upload Endpoints
+  /files/upload:
+    post:
+      tags:
+        - File Management
+      summary: Upload files
+      description: Upload one or more files
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+                - category
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                category:
+                  type: string
+                  enum: [task_attachment, deliverable, avatar, chat_attachment]
+                taskId:
+                  type: string
+                  description: Optional task ID for context
+      responses:
+        '200':
+          description: Files uploaded successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/FileInfo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /files/{fileId}:
+    get:
+      tags:
+        - File Management
+      summary: Get file details
+      description: Get file metadata and information
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FileInfo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - File Management
+      summary: Delete file
+      description: Delete a file and its metadata
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /files/{fileId}/download:
+    get:
+      tags:
+        - File Management
+      summary: Download file
+      description: Download file content
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Billing & Payment Endpoints
+  /bills:
+    get:
+      tags:
+        - Billing & Payments
+      summary: Get bills
+      description: Get user's bills (filtered by role)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, paid, overdue, cancelled]
+        - name: studentId
+          in: query
+          schema:
+            type: string
+          description: Filter by student ID (Admin only)
+      responses:
+        '200':
+          description: Bills retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          bills:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Bill'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Billing & Payments
+      summary: Create bill
+      description: Create a new bill (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBillRequest'
+      responses:
+        '201':
+          description: Bill created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Bill'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /bills/{billId}/payment-intent:
+    post:
+      tags:
+        - Billing & Payments
+      summary: Create payment intent
+      description: Create Stripe payment intent for bill payment
+      parameters:
+        - name: billId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - currency
+              properties:
+                currency:
+                  type: string
+                  enum: [usd, eur, gbp]
+                  default: usd
+                customerEmail:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Payment intent created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          clientSecret:
+                            type: string
+                            description: Stripe client secret for payment
+                          amount:
+                            type: integer
+                            description: Amount in cents
+                          currency:
+                            type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Messaging Endpoints
+  /chats:
+    get:
+      tags:
+        - Messaging
+      summary: Get chat conversations
+      description: Get user's chat conversations
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [task, general, support]
+      responses:
+        '200':
+          description: Chats retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          chats:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ChatConversation'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /chats/{chatId}/messages:
+    get:
+      tags:
+        - Messaging
+      summary: Get chat messages
+      description: Get messages in a chat conversation
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: before
+          in: query
+          schema:
+            type: string
+            format: date-time
+          description: Get messages before this timestamp
+      responses:
+        '200':
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          messages:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/ChatMessage'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Messaging
+      summary: Send message
+      description: Send a message in a chat conversation
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+                - type
+              properties:
+                content:
+                  type: string
+                  description: Message content
+                type:
+                  type: string
+                  enum: [text, image, file]
+                attachments:
+                  type: array
+                  items:
+                    type: string
+                  description: Array of file IDs
+                replyTo:
+                  type: string
+                  description: Message ID being replied to
+      responses:
+        '201':
+          description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ChatMessage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Partnership Request Endpoints
+  /partnership-requests:
+    get:
+      tags:
+        - Partnership Requests
+      summary: Get partnership requests
+      description: Get partnership requests (filtered by role)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: urgency
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high]
+      responses:
+        '200':
+          description: Partnership requests retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          requests:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/PartnershipRequest'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Partnership Requests
+      summary: Create partnership request
+      description: Submit a new partnership request (Student only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePartnershipRequest'
+      responses:
+        '201':
+          description: Partnership request created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PartnershipRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # Admin User Management Endpoints
+  /users/students:
+    get:
+      tags:
+        - Admin - User Management
+      summary: Get all students
+      description: Get list of all students (Admin only)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by name or email
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, suspended]
+        - name: academicLevel
+          in: query
+          schema:
+            type: string
+            enum: [high_school, undergraduate, graduate, masters, phd, professional]
+      responses:
+        '200':
+          description: Students retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          students:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/User'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /users/{userId}:
+    get:
+      tags:
+        - Admin - User Management
+      summary: Get user details
+      description: Get specific user details (Admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User details retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{userId}/status:
+    put:
+      tags:
+        - Admin - User Management
+      summary: Update user status
+      description: Update user account status (Admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [active, inactive, suspended]
+                reason:
+                  type: string
+                  description: Optional reason for status change
+      responses:
+        '200':
+          description: User status updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Admin Task Management Endpoints
+  /tasks/{taskId}/assign:
+    post:
+      tags:
+        - Admin - Task Management
+      summary: Assign task to admin
+      description: Assign task to a specific admin (Admin only)
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - adminId
+              properties:
+                adminId:
+                  type: string
+                  description: ID of admin to assign task to
+                notes:
+                  type: string
+                  description: Optional assignment notes
+      responses:
+        '200':
+          description: Task assigned successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /tasks/{taskId}/status:
+    put:
+      tags:
+        - Admin - Task Management
+      summary: Update task status
+      description: Update task status with feedback (Admin only)
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [in_progress, completed, revision_needed, rejected]
+                reason:
+                  type: string
+                  description: Optional reason for status change
+                feedback:
+                  type: string
+                  description: Detailed feedback for the student
+                estimatedCompletion:
+                  type: string
+                  format: date-time
+                  description: Estimated completion date
+      responses:
+        '200':
+          description: Task status updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Admin Deliverable Management
+  /deliverables/{deliverableId}/submit:
+    post:
+      tags:
+        - Admin - Deliverable Management
+      summary: Submit deliverable files
+      description: Submit files for a deliverable (Admin only)
+      parameters:
+        - name: deliverableId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                notes:
+                  type: string
+                  description: Submission notes
+      responses:
+        '200':
+          description: Deliverable submitted successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Deliverable'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Admin Partnership Request Management
+  /partnership-requests/{requestId}/status:
+    put:
+      tags:
+        - Admin - Partnership Requests
+      summary: Update partnership request status
+      description: Approve or reject partnership request (Admin only)
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [approved, rejected]
+                reason:
+                  type: string
+                  description: Reason for decision
+                assignedAdmin:
+                  type: string
+                  description: Admin ID if approved
+                estimatedResponse:
+                  type: string
+                  description: Estimated response time if approved
+      responses:
+        '200':
+          description: Partnership request status updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PartnershipRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Admin Meeting Management
+  /meetings:
+    get:
+      tags:
+        - Meeting Management
+      summary: Get meetings
+      description: Get user's meetings
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [scheduled, completed, cancelled]
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [virtual, in_person]
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: studentId
+          in: query
+          schema:
+            type: string
+          description: Filter by student ID (Admin only)
+      responses:
+        '200':
+          description: Meetings retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          meetings:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Meeting'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Admin - Meeting Management
+      summary: Schedule meeting
+      description: Schedule a new meeting (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMeetingRequest'
+      responses:
+        '201':
+          description: Meeting scheduled successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Meeting'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /meetings/{meetingId}:
+    get:
+      tags:
+        - Meeting Management
+      summary: Get meeting details
+      description: Get specific meeting details
+      parameters:
+        - name: meetingId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Meeting retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Meeting'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Meeting Management
+      summary: Update meeting
+      description: Update meeting details
+      parameters:
+        - name: meetingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                time:
+                  type: string
+                  pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+                duration:
+                  type: integer
+                  minimum: 15
+                  maximum: 480
+                location:
+                  type: string
+                meetingUrl:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Meeting updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Meeting'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Meeting Management
+      summary: Cancel meeting
+      description: Cancel a scheduled meeting
+      parameters:
+        - name: meetingId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  description: Reason for cancellation
+      responses:
+        '200':
+          description: Meeting cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Admin Analytics & Reports Endpoints
+  /analytics/dashboard:
+    get:
+      tags:
+        - Admin - Analytics
+      summary: Get dashboard analytics
+      description: Get comprehensive dashboard analytics (Admin only)
+      responses:
+        '200':
+          description: Dashboard analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DashboardAnalytics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /analytics/tasks:
+    get:
+      tags:
+        - Admin - Analytics
+      summary: Get task analytics
+      description: Get detailed task analytics (Admin only)
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: groupBy
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: week
+      responses:
+        '200':
+          description: Task analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TaskAnalytics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /analytics/revenue:
+    get:
+      tags:
+        - Admin - Analytics
+      summary: Get revenue analytics
+      description: Get revenue analytics and trends (Admin only)
+      parameters:
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: groupBy
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month]
+            default: month
+      responses:
+        '200':
+          description: Revenue analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RevenueAnalytics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /reports/tasks:
+    get:
+      tags:
+        - Admin - Reports
+      summary: Export task report
+      description: Export task report in CSV or PDF format (Admin only)
+      parameters:
+        - name: format
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [csv, pdf]
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, in_progress, completed, revision_needed, rejected]
+      responses:
+        '200':
+          description: Report generated successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+            text/csv:
+              schema:
+                type: string
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # Admin System Management
+  /admin/announcements:
+    post:
+      tags:
+        - Admin - System Management
+      summary: Create system announcement
+      description: Create a system-wide announcement (Admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - message
+                - type
+                - targetAudience
+              properties:
+                title:
+                  type: string
+                  example: "System Maintenance"
+                message:
+                  type: string
+                  example: "Scheduled maintenance on Saturday..."
+                type:
+                  type: string
+                  enum: [info, warning, error, success]
+                targetAudience:
+                  type: string
+                  enum: [all, students, admins]
+                expiresAt:
+                  type: string
+                  format: date-time
+                priority:
+                  type: string
+                  enum: [low, medium, high]
+                  default: medium
+      responses:
+        '201':
+          description: Announcement created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Announcement'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/users/statistics:
+    get:
+      tags:
+        - Admin - System Management
+      summary: Get user statistics
+      description: Get comprehensive user statistics (Admin only)
+      responses:
+        '200':
+          description: User statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserStatistics'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/system-logs:
+    get:
+      tags:
+        - Admin - System Management
+      summary: Get system logs
+      description: Get system logs for monitoring and debugging (Admin only)
+      parameters:
+        - name: level
+          in: query
+          schema:
+            type: string
+            enum: [error, warn, info, debug]
+        - name: service
+          in: query
+          schema:
+            type: string
+          description: Filter by service name
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 100
+      responses:
+        '200':
+          description: System logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          logs:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/SystemLog'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # Notifications Endpoints
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get notifications
+      description: Get user notifications
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [task_update, payment_received, message, meeting, system]
+      responses:
+        '200':
+          description: Notifications retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          notifications:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Notification'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notifications/read-all:
+    put:
+      tags:
+        - Notifications
+      summary: Mark all notifications as read
+      description: Mark all user notifications as read
+      responses:
+        '200':
+          description: All notifications marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # WebSocket Events (Documentation Only)
+  /ws:
+    get:
+      tags:
+        - WebSocket
+      summary: WebSocket connection
+      description: |
+        WebSocket endpoint for real-time features. Connect using:
+        ```
+        wss://api.gradhelper.com/ws?token=jwt_token
+        ```
+        
+        ## Supported Events:
+        - `chat.message` - Real-time chat messages
+        - `chat.typing` - Typing indicators
+        - `notification.new` - New notifications
+        - `task.status_changed` - Task status updates
+        - `meeting.reminder` - Meeting reminders
+        - `system.announcement` - System announcements
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+          description: JWT authentication token
+      responses:
+        '101':
+          description: WebSocket connection established
+        '401':
+          description: Unauthorized - invalid token
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ApiResponse:
+      type: object
+      required:
+        - success
+        - timestamp
+      properties:
+        success:
+          type: boolean
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          required:
+            - error
+          properties:
+            success:
+              type: boolean
+              example: false
+            error:
+              type: object
+              required:
+                - code
+                - message
+              properties:
+                code:
+                  type: string
+                  example: "VALIDATION_ERROR"
+                message:
+                  type: string
+                  example: "Invalid input data"
+                details:
+                  type: object
+                  description: Additional error details
+
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - role
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: "user_123"
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        role:
+          type: string
+          enum: [student, admin]
+          example: "student"
+        avatar:
+          type: string
+          format: uri
+          nullable: true
+        profile:
+          type: object
+          properties:
+            isComplete:
+              type: boolean
+            academicLevel:
+              type: string
+              enum: [high_school, undergraduate, graduate, masters, phd, professional]
+            institution:
+              type: string
+            major:
+              type: string
+            bio:
+              type: string
+            preferences:
+              type: object
+              properties:
+                notifications:
+                  type: boolean
+                emailUpdates:
+                  type: boolean
+                theme:
+                  type: string
+                  enum: [light, dark]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - status
+        - priority
+        - dueDate
+        - createdAt
+        - updatedAt
+        - budget
+      properties:
+        id:
+          type: string
+          example: "task_123"
+        title:
+          type: string
+          example: "Machine Learning Research Paper"
+        description:
+          type: string
+        type:
+          type: string
+          enum: [assignment, essay, research_paper, final_year_project, case_study, presentation, lab_report, thesis, dissertation, other]
+        subject:
+          type: string
+        status:
+          type: string
+          enum: [pending, in_progress, completed, revision_needed, rejected]
+        priority:
+          type: string
+          enum: [low, medium, high]
+        dueDate:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        budget:
+          type: number
+          format: float
+        student:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+        assignedAdmin:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+        deliverables:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deliverable'
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileInfo'
+
+    CreateTaskRequest:
+      type: object
+      required:
+        - title
+        - type
+        - description
+        - subject
+        - academicLevel
+        - deadline
+        - budget
+      properties:
+        title:
+          type: string
+          example: "Machine Learning Research Paper"
+        type:
+          type: string
+          enum: [assignment, essay, research_paper, final_year_project, case_study, presentation, lab_report, thesis, dissertation, other]
+        description:
+          type: string
+        subject:
+          type: string
+        academicLevel:
+          type: string
+          enum: [high_school, undergraduate, graduate, masters, phd, professional]
+        pages:
+          type: integer
+          minimum: 1
+        deadline:
+          type: string
+          format: date-time
+        budget:
+          type: number
+          format: float
+          minimum: 0
+        requirements:
+          type: string
+        deliverables:
+          type: array
+          items:
+            type: string
+        attachments:
+          type: array
+          items:
+            type: string
+          description: Array of file IDs
+        citations:
+          type: string
+
+    Deliverable:
+      type: object
+      required:
+        - id
+        - title
+        - dueDate
+        - status
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        dueDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [pending, in_progress, completed, revision_needed]
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileInfo'
+
+    FileInfo:
+      type: object
+      required:
+        - id
+        - name
+        - originalName
+        - size
+        - type
+        - url
+        - uploadedAt
+      properties:
+        id:
+          type: string
+          example: "file_123"
+        name:
+          type: string
+          example: "document.pdf"
+        originalName:
+          type: string
+          example: "My Document.pdf"
+        size:
+          type: integer
+          example: 1024000
+        type:
+          type: string
+          example: "application/pdf"
+        url:
+          type: string
+          format: uri
+        thumbnailUrl:
+          type: string
+          format: uri
+          nullable: true
+        uploadedAt:
+          type: string
+          format: date-time
+
+    Bill:
+      type: object
+      required:
+        - id
+        - taskId
+        - studentId
+        - description
+        - amount
+        - status
+        - dueDate
+        - createdAt
+      properties:
+        id:
+          type: string
+        taskId:
+          type: string
+        studentId:
+          type: string
+        description:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              description:
+                type: string
+              amount:
+                type: number
+                format: float
+        amount:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [pending, paid, overdue, cancelled]
+        dueDate:
+          type: string
+          format: date-time
+        paidDate:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        student:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+
+    CreateBillRequest:
+      type: object
+      required:
+        - taskId
+        - studentId
+        - description
+        - items
+        - dueDate
+      properties:
+        taskId:
+          type: string
+        studentId:
+          type: string
+        description:
+          type: string
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              - description
+              - amount
+            properties:
+              description:
+                type: string
+              amount:
+                type: number
+                format: float
+        dueDate:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    ChatConversation:
+      type: object
+      required:
+        - id
+        - participants
+        - lastMessage
+        - updatedAt
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [task, general, support]
+        participants:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              role:
+                type: string
+              avatar:
+                type: string
+        lastMessage:
+          $ref: '#/components/schemas/ChatMessage'
+        unreadCount:
+          type: integer
+        updatedAt:
+          type: string
+          format: date-time
+
+    ChatMessage:
+      type: object
+      required:
+        - id
+        - senderId
+        - senderName
+        - senderRole
+        - content
+        - type
+        - timestamp
+        - status
+      properties:
+        id:
+          type: string
+        senderId:
+          type: string
+        senderName:
+          type: string
+        senderRole:
+          type: string
+          enum: [student, admin]
+        senderAvatar:
+          type: string
+          nullable: true
+        content:
+          type: string
+        type:
+          type: string
+          enum: [text, image, file, system]
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileInfo'
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [sending, sent, delivered, read]
+        isEdited:
+          type: boolean
+        replyTo:
+          type: string
+          nullable: true
+
+    PartnershipRequest:
+      type: object
+      required:
+        - id
+        - studentId
+        - requestType
+        - subject
+        - description
+        - urgency
+        - status
+        - submittedDate
+      properties:
+        id:
+          type: string
+        studentId:
+          type: string
+        requestType:
+          type: string
+          enum: [academic_help, tutoring, consultation]
+        subject:
+          type: string
+        description:
+          type: string
+        urgency:
+          type: string
+          enum: [low, medium, high]
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        preferredContactMethod:
+          type: string
+          enum: [email, phone, chat]
+        availabilitySchedule:
+          type: string
+        additionalNotes:
+          type: string
+        submittedDate:
+          type: string
+          format: date-time
+        student:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+
+    CreatePartnershipRequest:
+      type: object
+      required:
+        - requestType
+        - subject
+        - description
+        - urgency
+      properties:
+        requestType:
+          type: string
+          enum: [academic_help, tutoring, consultation]
+        subject:
+          type: string
+        description:
+          type: string
+        urgency:
+          type: string
+          enum: [low, medium, high]
+        preferredContactMethod:
+          type: string
+          enum: [email, phone, chat]
+        availabilitySchedule:
+          type: string
+        additionalNotes:
+          type: string
+
+    Notification:
+      type: object
+      required:
+        - id
+        - type
+        - title
+        - message
+        - userId
+        - userRole
+        - createdAt
+        - read
+      properties:
+        id:
+          type: string
+        type:
+          type: string
+          enum: [task_update, payment_received, message, meeting, system]
+        title:
+          type: string
+        message:
+          type: string
+        userId:
+          type: string
+        userRole:
+          type: string
+          enum: [student, admin]
+        createdAt:
+          type: string
+          format: date-time
+        read:
+          type: boolean
+        relatedId:
+          type: string
+          nullable: true
+          description: ID of related entity (task, bill, etc.)
+
+    Meeting:
+      type: object
+      required:
+        - id
+        - studentId
+        - adminId
+        - title
+        - date
+        - time
+        - duration
+        - type
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+        studentId:
+          type: string
+        adminId:
+          type: string
+        title:
+          type: string
+          example: "Project Discussion"
+        description:
+          type: string
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+          example: "14:00"
+        duration:
+          type: integer
+          minimum: 15
+          maximum: 480
+          example: 60
+        type:
+          type: string
+          enum: [virtual, in_person]
+        status:
+          type: string
+          enum: [scheduled, completed, cancelled, rescheduled]
+        location:
+          type: string
+          nullable: true
+          description: Physical location for in-person meetings
+        meetingUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: Virtual meeting URL
+        agenda:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        student:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+        admin:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            email:
+              type: string
+
+    CreateMeetingRequest:
+      type: object
+      required:
+        - studentId
+        - title
+        - date
+        - time
+        - duration
+        - type
+      properties:
+        studentId:
+          type: string
+        title:
+          type: string
+          example: "Project Discussion"
+        description:
+          type: string
+        date:
+          type: string
+          format: date
+        time:
+          type: string
+          pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+          example: "14:00"
+        duration:
+          type: integer
+          minimum: 15
+          maximum: 480
+          example: 60
+          description: Duration in minutes
+        type:
+          type: string
+          enum: [virtual, in_person]
+        location:
+          type: string
+          description: Required for in-person meetings
+        meetingUrl:
+          type: string
+          format: uri
+          description: Virtual meeting URL (auto-generated if not provided)
+        agenda:
+          type: string
+
+    DashboardAnalytics:
+      type: object
+      required:
+        - totalTasks
+        - activeTasks
+        - completedTasks
+        - totalRevenue
+        - monthlyRevenue
+        - activeStudents
+        - tasksByStatus
+      properties:
+        totalTasks:
+          type: integer
+          example: 156
+        activeTasks:
+          type: integer
+          example: 42
+        completedTasks:
+          type: integer
+          example: 98
+        totalRevenue:
+          type: number
+          format: float
+          example: 45600.00
+        monthlyRevenue:
+          type: number
+          format: float
+          example: 12400.00
+        activeStudents:
+          type: integer
+          example: 89
+        tasksByStatus:
+          type: object
+          properties:
+            pending:
+              type: integer
+            in_progress:
+              type: integer
+            completed:
+              type: integer
+            revision_needed:
+              type: integer
+            rejected:
+              type: integer
+        revenueByMonth:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                format: date
+              amount:
+                type: number
+                format: float
+        topStudents:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              totalTasks:
+                type: integer
+              totalSpent:
+                type: number
+                format: float
+
+    TaskAnalytics:
+      type: object
+      properties:
+        totalTasks:
+          type: integer
+        tasksByStatus:
+          type: object
+          properties:
+            pending:
+              type: integer
+            in_progress:
+              type: integer
+            completed:
+              type: integer
+            revision_needed:
+              type: integer
+            rejected:
+              type: integer
+        tasksBySubject:
+          type: array
+          items:
+            type: object
+            properties:
+              subject:
+                type: string
+              count:
+                type: integer
+        tasksByAcademicLevel:
+          type: array
+          items:
+            type: object
+            properties:
+              level:
+                type: string
+              count:
+                type: integer
+        averageCompletionTime:
+          type: number
+          format: float
+          description: Average completion time in days
+        tasksOverTime:
+          type: array
+          items:
+            type: object
+            properties:
+              period:
+                type: string
+                format: date
+              count:
+                type: integer
+
+    RevenueAnalytics:
+      type: object
+      properties:
+        totalRevenue:
+          type: number
+          format: float
+        monthlyRevenue:
+          type: number
+          format: float
+        averageTaskValue:
+          type: number
+          format: float
+        revenueByMonth:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                format: date
+              amount:
+                type: number
+                format: float
+        revenueBySubject:
+          type: array
+          items:
+            type: object
+            properties:
+              subject:
+                type: string
+              amount:
+                type: number
+                format: float
+        paymentMethods:
+          type: object
+          properties:
+            stripe:
+              type: number
+              format: float
+            other:
+              type: number
+              format: float
+
+    UserStatistics:
+      type: object
+      required:
+        - totalUsers
+        - activeUsers
+        - newUsersThisMonth
+        - usersByRole
+        - usersByStatus
+      properties:
+        totalUsers:
+          type: integer
+          example: 245
+        activeUsers:
+          type: integer
+          example: 198
+        newUsersThisMonth:
+          type: integer
+          example: 23
+        usersByRole:
+          type: object
+          properties:
+            student:
+              type: integer
+            admin:
+              type: integer
+        usersByStatus:
+          type: object
+          properties:
+            active:
+              type: integer
+            inactive:
+              type: integer
+            suspended:
+              type: integer
+        usersByAcademicLevel:
+          type: array
+          items:
+            type: object
+            properties:
+              level:
+                type: string
+              count:
+                type: integer
+        registrationTrend:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                format: date
+              count:
+                type: integer
+
+    Announcement:
+      type: object
+      required:
+        - id
+        - title
+        - message
+        - type
+        - targetAudience
+        - createdAt
+        - active
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        message:
+          type: string
+        type:
+          type: string
+          enum: [info, warning, error, success]
+        targetAudience:
+          type: string
+          enum: [all, students, admins]
+        priority:
+          type: string
+          enum: [low, medium, high]
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        active:
+          type: boolean
+        createdBy:
+          type: object
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+
+    SystemLog:
+      type: object
+      required:
+        - id
+        - level
+        - message
+        - service
+        - timestamp
+      properties:
+        id:
+          type: string
+        level:
+          type: string
+          enum: [error, warn, info, debug]
+        message:
+          type: string
+        service:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          description: Additional log metadata
+        userId:
+          type: string
+          nullable: true
+        requestId:
+          type: string
+          nullable: true
+        errorStack:
+          type: string
+          nullable: true
+
+    Pagination:
+      type: object
+      required:
+        - page
+        - limit
+        - total
+        - totalPages
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          minimum: 0
+        totalPages:
+          type: integer
+          minimum: 0
+        hasNextPage:
+          type: boolean
+        hasPrevPage:
+          type: boolean
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "VALIDATION_ERROR"
+              message: "Invalid input data"
+              details:
+                field: "email"
+                issue: "Invalid email format"
+            timestamp: "2025-01-15T10:00:00Z"
+            requestId: "req_123456"
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "AUTHENTICATION_REQUIRED"
+              message: "Valid authentication token required"
+            timestamp: "2025-01-15T10:00:00Z"
+            requestId: "req_123456"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "UNAUTHORIZED"
+              message: "Insufficient permissions"
+            timestamp: "2025-01-15T10:00:00Z"
+            requestId: "req_123456"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "NOT_FOUND"
+              message: "Resource not found"
+            timestamp: "2025-01-15T10:00:00Z"
+            requestId: "req_123456"
+
+    Conflict:
+      description: Conflict - resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "CONFLICT"
+              message: "Resource already exists"
+            timestamp: "2025-01-15T10:00:00Z"
+            requestId: "req_123456"
+
+    RateLimitExceeded:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "RATE_LIMIT_EXCEEDED"
+              message: "Too many requests"
+            timestamp: "2025-01-15T10:00:00Z"
+            requestId: "req_123456"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            success: false
+            error:
+              code: "INTERNAL_SERVER_ERROR"
+              message: "An unexpected error occurred"
+            timestamp: "2025-01-15T10:00:00Z"
+            requestId: "req_123456"
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: User Management
+    description: User profile and account management
+  - name: Admin - User Management
+    description: Admin-only user management operations
+  - name: Task Management
+    description: Academic task creation, assignment, and tracking
+  - name: Admin - Task Management
+    description: Admin-only task management operations
+  - name: Admin - Deliverable Management
+    description: Admin-only deliverable submission and management
+  - name: File Management
+    description: File upload, download, and management
+  - name: Billing & Payments
+    description: Payment processing and billing management
+  - name: Messaging
+    description: Real-time chat and messaging
+  - name: Partnership Requests
+    description: Academic assistance requests and approvals
+  - name: Admin - Partnership Requests
+    description: Admin-only partnership request management
+  - name: Meeting Management
+    description: Meeting scheduling and management
+  - name: Admin - Meeting Management
+    description: Admin-only meeting management operations
+  - name: Notifications
+    description: User notifications and preferences
+  - name: Admin - Analytics
+    description: Admin-only analytics and reporting
+  - name: Admin - Reports
+    description: Admin-only report generation and export
+  - name: Admin - System Management
+    description: Admin-only system management and configuration
+  - name: WebSocket
+    description: Real-time WebSocket connections and events
