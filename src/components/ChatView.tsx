@@ -99,7 +99,7 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
       try {
         const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:8000';
         const token = localStorage.getItem('gradhelper_token');
-        let url = `${baseUrl}/api/auth/chats/messages`;
+        let url = `${baseUrl}api/auth/chats/messages`;
         if (userRole === 'admin' && selectedStudent) {
           url += `?student_id=${selectedStudent.id}`;
         } else if (userRole === 'student') {
@@ -276,7 +276,7 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
         try {
           const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:8000';
           const token = localStorage.getItem('gradhelper_token');
-          const response = await fetch(`${baseUrl}/api/auth/admin/user-profiles`, {
+          const response = await fetch(`${baseUrl}api/auth/admin/user-profiles`, {
             headers: {
               'Content-Type': 'application/json',
               ...(token ? { 'Authorization': `Bearer ${token}` } : {})
@@ -583,83 +583,115 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
       };
 
   return (
-    <div className="chat-view">
+    <div className="h-full bg-white flex relative">
+      {/* Connection Status Banner */}
       {socketWarning && (
-        <div className="bg-red-100 text-red-700 px-4 py-2 text-center text-sm">
-          {socketWarning}
+        <div className="absolute top-0 left-0 right-0 bg-amber-50 border-b border-amber-200 px-4 py-2 z-30">
+          <div className="flex items-center justify-center">
+            <Info className="w-4 h-4 text-amber-600 mr-2" />
+            <span className="text-sm text-amber-800">{socketWarning}</span>
+          </div>
         </div>
       )}
-      <div className="flex h-[calc(100vh-12rem)] gap-6">
+      
+      <div className="flex h-full w-full">
         {/* Student Sidebar - Admin Only */}
         {userRole === 'admin' && (
-          <Card className="w-[340px] flex flex-col">
-            <CardHeader className="pb-3 border-b">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-blue-600" />
-                <CardTitle className="text-lg">Students</CardTitle>
+          <div className="w-80 bg-gray-50 border-r border-gray-200 flex flex-col sticky top-0 h-screen z-10">
+            {/* Header */}
+            <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
+              <div className="flex items-center justify-between mb-4">
+                <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
+                <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <Users className="w-5 h-5" />
+                </button>
               </div>
+              
+              {/* Search */}
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  placeholder="Search students..."
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                  type="text"
+                  placeholder="Search conversations..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="w-full pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 />
               </div>
-            </CardHeader>
-            <CardContent className="flex-1 p-0">
-              <ScrollArea className="h-full">
-                <div className="space-y-1 p-2">
-                  {filteredStudents.map((student) => (
-                    <div
-                      key={student.id}
-                      onClick={() => handleSelectStudent(student)}
-                      className={`student-item p-3 rounded-lg cursor-pointer transition-colors ${
-                        selectedStudent?.id === student.id
-                          ? 'bg-blue-50 border border-blue-200'
-                          : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="relative flex-shrink-0">
-                          <Avatar name={student.name} size="lg" />
-                          <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
-                            student.isOnline ? 'bg-green-500' : 'bg-gray-400'
-                          }`} />
+            </div>
+
+            {/* Student List - Scrollable */}
+            <div className="flex-1 overflow-y-auto min-h-0">
+              <div className="space-y-0">
+                {filteredStudents.map((student) => (
+                  <div
+                    key={student.id}
+                    onClick={() => handleSelectStudent(student)}
+                    className={`px-6 py-4 cursor-pointer transition-colors hover:bg-white ${
+                      selectedStudent?.id === student.id 
+                        ? 'bg-blue-50 border-r-2 border-r-blue-500' 
+                        : 'border-b border-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      {/* Avatar */}
+                      <div className="relative">
+                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-medium">
+                            {student.name.charAt(0).toUpperCase()}
+                          </span>
                         </div>
-                        <div className="flex-1 min-w-0 pr-1">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <h4 className="font-medium text-sm truncate flex-1">{student.name}</h4>
-                            {student.unreadCount > 0 && (
-                              <div className="flex-shrink-0 ml-2">
-                                <Badge variant="default" className="bg-blue-600 text-white text-xs min-w-[20px] h-5 flex items-center justify-center rounded-full">
-                                  {student.unreadCount}
-                                </Badge>
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 truncate">{student.subject}</p>
-                          {student.lastMessage && (
-                            <p className="text-xs text-gray-500 truncate mt-1">{student.lastMessage}</p>
-                          )}
+                        {student.isOnline && (
+                          <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-2 border-white rounded-full" />
+                        )}
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className={`text-sm font-medium truncate ${
+                            selectedStudent?.id === student.id ? 'text-blue-900' : 'text-gray-900'
+                          }`}>
+                            {student.name}
+                          </h3>
                           {student.lastMessageTime && (
-                            <p className="text-xs text-gray-400 mt-1">{student.lastMessageTime}</p>
+                            <span className="text-xs text-gray-500 ml-2">
+                              {student.lastMessageTime}
+                            </span>
                           )}
+                        </div>
+                        
+                        <div className="flex items-center justify-between mt-1">
+                          <p className="text-sm text-gray-500 truncate">
+                            {student.lastMessage || 'No messages yet'}
+                          </p>
+                          {student.unreadCount > 0 && (
+                            <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center ml-2">
+                              <span className="text-white text-xs font-medium">
+                                {student.unreadCount}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div className="mt-1">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800">
+                            {student.subject}
+                          </span>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Main Chat Area */}
-         <Card className={`chat-container flex flex-col ${userRole === 'admin' ? 'w-[calc(80vw-460px)]' : 'w-full'}`}>
-          {/* Chat Header */}
-          <CardHeader className="pb-3 border-b">
+        <div className="flex-1 flex flex-col h-full">
+          {/* Chat Header - Sticky */}
+          <div className="px-6 py-4 bg-white border-b border-gray-200 sticky top-0 z-20">
             {userRole === 'admin' && !selectedStudent ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-center">
@@ -669,62 +701,68 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
                 </div>
               </div>
             ) : (
-              <>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <div className="avatar w-10 h-10">
-                        <Avatar name={currentParticipant.name} size="lg" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  {/* Current conversation info */}
+                  {userRole === 'admin' && selectedStudent ? (
+                    <>
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm font-medium">
+                          {selectedStudent.name.charAt(0).toUpperCase()}
+                        </span>
                       </div>
-                      <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
-                        (userRole === 'admin' ? selectedStudent?.isOnline : isOnline) ? 'bg-green-500' : 'bg-gray-400'
-                      }`} />
-                    </div>
-                    
-                    <div>
-                      <CardTitle className="text-base">{currentParticipant.name}</CardTitle>
-                      <CardDescription className="flex items-center gap-2">
-                        {currentParticipant.role}
-                        {(userRole === 'admin' ? selectedStudent?.isOnline : isOnline) ? (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
-                            Online
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-gray-500">Last seen {lastSeen}</span>
-                        )}
-                      </CardDescription>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
-                      <Search className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Phone className="w-4 h-4" />
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <Video className="w-4 h-4" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => setIsMuted(!isMuted)}
-                    >
-                      {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-                    </Button>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="w-4 h-4" />
-                    </Button>
-                  </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-900">{selectedStudent.name}</h2>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <span className={`w-2 h-2 rounded-full mr-2 ${selectedStudent.isOnline ? 'bg-green-400' : 'bg-gray-400'}`} />
+                          {selectedStudent.isOnline ? 'Online' : `Last seen ${selectedStudent.lastMessageTime || lastSeen}`}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center">
+                        <MessageCircle className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-900">Support Chat</h2>
+                        <div className="flex items-center text-sm text-gray-500">
+                          <span className="w-2 h-2 rounded-full bg-green-400 mr-2" />
+                          Online
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
-              </>
+                
+                {/* Header Actions */}
+                <div className="flex items-center space-x-2">
+                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <Search className="w-5 h-5" />
+                  </button>
+                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <Phone className="w-5 h-5" />
+                  </button>
+                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <Video className="w-5 h-5" />
+                  </button>
+                  <button 
+                    onClick={() => setIsMuted(!isMuted)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                  </button>
+                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                    <MoreVertical className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
             )}
-          </CardHeader>
+          </div>
           
-          {/* Messages Area */}
+          {/* Messages Area - Scrollable */}
           {userRole === 'admin' && !selectedStudent ? null : (
-            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
           {messages.map((message, index) => {
             // Fix alignment: sender messages on right, receiver on left
             // Fix alignment for both student and admin views
@@ -753,140 +791,148 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
             }
             
             return (
-              <div
-                key={message.id}
-                className={`chat-message flex gap-3 ${isCurrentUser ? 'flex-row-reverse' : ''}`}
-              >
-                <div className="avatar-container">
-                  {showAvatar ? (
-                    <div className="avatar w-8 h-8">
-                      <Avatar name={message.senderName} size="md" />
+              <div key={message.id}>
+                {/* Date separator */}
+                {(index === 0 || formatTimestamp(messages[index - 1].timestamp) !== formatTimestamp(message.timestamp)) && (
+                  <div className="flex items-center justify-center my-4">
+                    <div className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">
+                      {formatTimestamp(message.timestamp)}
                     </div>
-                  ) : (
-                    <div className="w-8 h-8" />
-                  )}
-                </div>
+                  </div>
+                )}
                 
-                <div className={`message-bubble-container max-w-xs lg:max-w-md ${isCurrentUser ? 'items-end' : 'items-start'} flex flex-col`}>
-                  {showAvatar && !isCurrentUser && (
-                    <span className="text-xs text-gray-500 mb-1 px-3">
-                      {message.senderName}
-                    </span>
-                  )}
-                  
-                  <div className={`message-bubble ${
-                    isCurrentUser 
-                      ? 'bg-blue-600 text-white rounded-l-2xl rounded-tr-2xl' 
-                      : 'bg-gray-100 text-gray-900 rounded-r-2xl rounded-tl-2xl'
-                  } p-3 shadow-sm`}>
-                    <p className="text-sm leading-relaxed">
-                      {message.content}
-                    </p>
-                    
-                    {message.attachments && message.attachments.length > 0 && (
-                      <div className="attachments mt-2 space-y-2">
-                        {message.attachments.map((attachment) => (
-                          <div 
-                            key={attachment.id}
-                            className={`attachment flex items-center gap-2 p-2 rounded ${
-                              isCurrentUser ? 'bg-blue-700' : 'bg-gray-200'
-                            }`}
-                          >
-                            <File className="w-4 h-4" />
-                            <span className="text-xs font-medium truncate flex-1">
-                              {attachment.name}
-                            </span>
-                          </div>
-                        ))}
+                {/* Message */}
+                <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`flex max-w-xs lg:max-w-md ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'}`}>
+                    {/* Avatar */}
+                    {showAvatar && !isCurrentUser && (
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                        <span className="text-white text-xs font-medium">
+                          {message.senderName.charAt(0).toUpperCase()}
+                        </span>
                       </div>
                     )}
                     
-                    <div className={`flex items-center justify-between mt-2 text-xs ${
-                      isCurrentUser ? 'text-blue-100' : 'text-gray-500'
-                    }`}>
-                      <span>{formatTimestamp(message.timestamp)}</span>
-                      {isCurrentUser && (
-                        <StatusIcon className={`w-3 h-3 ${
-                          message.status === 'read' ? 'text-blue-200' : 'text-blue-300'
-                        }`} />
+                    {/* Message bubble */}
+                    <div
+                      className={`px-4 py-2 rounded-2xl ${
+                        isCurrentUser
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-900'
+                      } ${showAvatar ? '' : isCurrentUser ? 'mr-10' : 'ml-10'}`}
+                    >
+                      <p className="text-sm">{message.content}
+</p>
+                      
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="mt-2 space-y-2">
+                          {message.attachments.map((attachment) => (
+                            <div 
+                              key={attachment.id}
+                              className={`flex items-center gap-2 p-2 rounded ${
+                                isCurrentUser ? 'bg-blue-600' : 'bg-gray-200'
+                              }`}
+                            >
+                              <File className="w-4 h-4" />
+                              <span className="text-xs font-medium truncate flex-1">
+                                {attachment.name}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
-                    
-                    {message.isEdited && (
-                      <div className={`text-xs mt-1 ${
-                        isCurrentUser ? 'text-blue-200' : 'text-gray-400'
-                      }`}>
-                        (edited)
-                      </div>
-                    )}
                   </div>
+                </div>
+                
+                {/* Message info */}
+                <div className={`flex items-center mt-1 ${isCurrentUser ? 'justify-end mr-2' : 'justify-start ml-10'}`}>
+                  <span className="text-xs text-gray-500 mr-1">
+                    {formatTimestamp(message.timestamp)}
+                  </span>
+                  {isCurrentUser && (
+                    <StatusIcon className={`w-3 h-3 ${
+                      message.status === 'read' ? 'text-blue-500' : 'text-gray-400'
+                    }`} />
+                  )}
+                  {message.isEdited && (
+                    <span className="text-xs text-gray-400 ml-1">
+                      (edited)
+                    </span>
+                  )}
                 </div>
               </div>
             );
           })}
           
-              {/* Typing Indicator */}
+              {/* Typing indicator */}
               {isTyping && (
-                <div className="typing-indicator flex gap-3">
-                  <div className="avatar w-8 h-8">
-                    <Avatar name={currentParticipant.name} size="md" />
-                  </div>
-                  <div className="typing-bubble bg-gray-100 rounded-r-2xl rounded-tl-2xl p-3">
-                    <div className="typing-dots flex gap-1">
-                      <div className="dot w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="dot w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="dot w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <div className="flex justify-start">
+                  <div className="bg-gray-100 text-gray-600 px-4 py-2 rounded-2xl ml-10">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
               )}
               
               <div ref={messagesEndRef} />
-            </CardContent>
+            </div>
           )}
           
-          {/* Chat Input */}
+          {/* Message Input - Sticky */}
           {userRole === 'admin' && !selectedStudent ? null : (
-            <div className="chat-input border-t p-4">
-          <form onSubmit={handleSendMessage} className="flex gap-2">
-            <Button type="button" variant="ghost" size="sm">
-              <Paperclip className="w-4 h-4" />
-            </Button>
-            <Button type="button" variant="ghost" size="sm">
-              <Image className="w-4 h-4" />
-            </Button>
-            <Input
-              ref={inputRef}
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Type your message..."
-              className="flex-1"
-            />
-            <Button type="button" variant="ghost" size="sm">
-              <Smile className="w-4 h-4" />
-            </Button>
-            <Button 
-              type="submit" 
-              disabled={!newMessage.trim()}
-              className="bg-blue-600 hover:bg-blue-700"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </form>
-          
+            <div className="px-4 py-4 bg-white border-t border-gray-200 sticky bottom-0 z-20">
+              <div className="flex items-center space-x-3">
+                <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <Paperclip className="w-5 h-5" />
+                </button>
+                
+                <div className="flex-1 relative">
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(e)}
+                    placeholder="Type a message..."
+                    className="w-full px-4 py-2 bg-gray-100 border-0 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  />
+                </div>
+                
+                <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <Smile className="w-5 h-5" />
+                </button>
+                
+                <button
+                  onClick={(e) => handleSendMessage(e)}
+                  disabled={!newMessage.trim()}
+                  className={`p-2 rounded-lg transition-colors ${
+                    newMessage.trim()
+                      ? 'bg-blue-500 text-white hover:bg-blue-600'
+                      : 'bg-gray-100 text-gray-400'
+                  }`}
+                >
+                  <Send className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Connection status info */}
               <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
                 <span>
                   {userRole === 'student' ? 'Admin Support' : selectedStudent?.name || 'Student'} is {(userRole === 'admin' ? selectedStudent?.isOnline : isOnline) ? 'online' : `last seen ${lastSeen}`}
                 </span>
                 {isTyping && (
                   <span className="text-blue-600">
-                    {currentParticipant.name} is typing...
+                    {userRole === 'admin' && selectedStudent ? selectedStudent.name : 'Support'} is typing...
                   </span>
                 )}
               </div>
             </div>
           )}
-        </Card>
+        </div>
       </div>
     </div>
   );

@@ -564,17 +564,114 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     }
   };
 
-  // Enhanced file download handler using file service
+  // Enhanced file download handler using proper backend API
   const handleDownloadFile = async (file: DeliverableFile | any, context?: string) => {
     try {
-      await downloadFileHelper(file, context);
-      toast.success(`Downloading ${file.name}...`, {
-        description: context ? `From: ${context}` : undefined,
-      });
+      const fileName = file.name || 'download';
+      const token = localStorage.getItem('gradhelper_token');
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+
+      // Check if this is a task attachment or deliverable file with R2 URL that needs authentication
+      if (file.url && file.url.includes('cloudflarestorage.com') && file.id) {
+        // First, try to find if it's a task attachment
+        const currentTask = tasks.find(task => 
+          task.attachments && task.attachments.some(att => att.id === file.id)
+        );
+
+        // If not found in task attachments, check deliverable files
+        let parentDeliverable = null;
+        let parentTaskForDeliverable = null;
+        
+        if (!currentTask) {
+          for (const task of tasks) {
+            if (task.deliverables) {
+              for (const deliverable of task.deliverables) {
+                if (deliverable.files && deliverable.files.some((delivFile: any) => delivFile.id === file.id)) {
+                  parentDeliverable = deliverable;
+                  parentTaskForDeliverable = task;
+                  break;
+                }
+              }
+              if (parentDeliverable) break;
+            }
+          }
+        }
+
+        let response = null;
+
+        if (currentTask) {
+          // Use task attachment endpoint
+          response = await fetch(`${API_BASE_URL}/accounts/tasks/${currentTask.id}/attachments/${file.id}/?action=download`, {
+            headers: {
+              ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+          });
+        } else if (parentDeliverable && parentTaskForDeliverable) {
+          // Use deliverable file endpoint (direct deliverable access)
+          response = await fetch(`${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=download`, {
+            headers: {
+              ...(token && { 'Authorization': `Bearer ${token}` }),
+            },
+          });
+        }
+
+        if (response && response.ok) {
+          const data = await response.json();
+          const downloadUrl = data.download_url || data.url;
+          
+          if (downloadUrl) {
+            // Create a temporary link to trigger download
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = data.file_name || fileName;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            toast.success(`Downloading ${fileName}...`, {
+              description: context ? `From: ${context}` : `File size: ${data.file_size ? Math.round(data.file_size / 1024) + ' KB' : 'Unknown'}`,
+            });
+            return;
+          }
+        }
+      }
+
+      // Fallback to generic file service or direct URL
+      if (file.url && file.url.startsWith('http')) {
+        // Try direct download with URL
+        const link = document.createElement('a');
+        link.href = file.url;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success(`Downloading ${fileName}...`, {
+          description: context ? `From: ${context}` : 'Direct download',
+        });
+      } else if (file.id) {
+        // Use generic API endpoint as fallback
+        const downloadUrl = `${API_BASE_URL}/files/${file.id}/download/`;
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success(`Downloading ${fileName}...`, {
+          description: context ? `From: ${context}` : 'API download',
+        });
+      } else {
+        throw new Error('No valid download method available');
+      }
     } catch (error) {
       console.error('Error downloading file:', error);
       toast.error('Failed to download file', {
-        description: 'Please check your connection and try again.',
+        description: 'Please check your connection and try again, or contact support if the issue persists.',
       });
     }
   };
@@ -672,17 +769,216 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     setShowFileDeleteModal(true);
   };
 
-  // Enhanced file preview handler
+  // Enhanced file preview handler - opens documents in browser with proper auth
   const handlePreviewFile = async (file: DeliverableFile | any, context?: string) => {
     try {
-      previewFileHelper(file);
-      toast.info(`Opening ${file.name}...`, {
-        description: context ? `From: ${context}` : undefined,
-      });
+      const fileName = file.name || '';
+      const extension = fileName.split('.').pop()?.toLowerCase();
+      const browserPreviewableTypes = [
+        'pdf', 'txt', 'md', 'html', 'htm', 'xml', 'json', 'csv',
+        'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp',
+        'mp4', 'webm', 'ogg', 'mp3', 'wav'
+      ];
+
+      const token = localStorage.getItem('gradhelper_token');
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+
+      // Check if this is a task attachment with R2 URL that needs authentication
+      if (file.url && file.url.includes('cloudflarestorage.com')) {
+        // This is an R2 file that needs a signed URL
+        try {
+          let signedUrlResponse;
+          
+          // For task attachments and deliverable files, we need the correct context
+          // First, try to find if it's a task attachment
+          const currentTask = tasks.find(task => 
+            task.attachments && task.attachments.some((att: any) => att.id === file.id)
+          );
+
+          // If not found in task attachments, check deliverable files
+          let parentDeliverable = null;
+          let parentTaskForDeliverable = null;
+          
+          if (!currentTask) {
+            for (const task of tasks) {
+              if (task.deliverables) {
+                for (const deliverable of task.deliverables) {
+                  if (deliverable.files && deliverable.files.some((delivFile: any) => delivFile.id === file.id)) {
+                    parentDeliverable = deliverable;
+                    parentTaskForDeliverable = task;
+                    break;
+                  }
+                }
+                if (parentDeliverable) break;
+              }
+            }
+          }
+          
+          if (file.id && currentTask) {
+            // Use task attachment endpoint
+            const taskAttachmentUrl = `${API_BASE_URL}/accounts/tasks/${currentTask.id}/attachments/${file.id}/?action=download`;
+            signedUrlResponse = await fetch(taskAttachmentUrl, {
+              headers: {
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+              },
+            });
+          } else if (file.id && parentDeliverable && parentTaskForDeliverable) {
+            // Use deliverable file endpoint
+            const deliverableFileUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=download`;
+            signedUrlResponse = await fetch(deliverableFileUrl, {
+              headers: {
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+              },
+            });
+          } else if (file.id) {
+            // Fallback to generic endpoints if task context is not available
+            signedUrlResponse = await fetch(`${API_BASE_URL}/files/${file.id}/url/`, {
+              headers: {
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+              },
+            });
+          }
+
+          let signedUrl = null;
+          if (signedUrlResponse && signedUrlResponse.ok) {
+            const data = await signedUrlResponse.json();
+            console.log('Signed URL response data:', data);
+            signedUrl = data.download_url || data.url || data.downloadUrl || data.previewUrl || data.signed_url;
+          }
+          
+          // If we got a signed URL, use it
+          if (signedUrl) {
+            if (extension && browserPreviewableTypes.includes(extension)) {
+              window.open(signedUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} in browser...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} file preview`,
+              });
+            } else if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf'].includes(extension)) {
+              // For Office docs and PDFs, use Google Docs Viewer
+              const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`;
+              window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} with document viewer...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} file via Google Docs Viewer`,
+              });
+            } else {
+              window.open(signedUrl, '_blank', 'noopener,noreferrer');
+              toast.info(`Opening ${fileName}...`, {
+                description: 'File will download if browser preview is not supported',
+              });
+            }
+            return;
+          }
+          
+          // If signed URL failed, try API proxy endpoint with task context
+          if (file.id && currentTask) {
+            const proxyUrl = `${API_BASE_URL}/accounts/tasks/${currentTask.id}/attachments/${file.id}/?action=preview`;
+            
+            if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf'].includes(extension)) {
+              // For Office docs and PDFs via proxy, use Google Docs Viewer
+              const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(proxyUrl)}&embedded=true`;
+              window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} with document viewer...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} file via proxy + viewer`,
+              });
+            } else {
+              window.open(proxyUrl, '_blank', 'noopener,noreferrer');
+              toast.info(`Opening ${fileName} via API proxy...`, {
+                description: context ? `From: ${context}` : 'Using authenticated proxy',
+              });
+            }
+            return;
+          } else if (file.id && parentDeliverable && parentTaskForDeliverable) {
+            const proxyUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=preview`;
+            
+            if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf'].includes(extension)) {
+              // For Office docs and PDFs via proxy, use Google Docs Viewer
+              const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(proxyUrl)}&embedded=true`;
+              window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} with document viewer...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} deliverable file via proxy + viewer`,
+              });
+            } else {
+              window.open(proxyUrl, '_blank', 'noopener,noreferrer');
+              toast.info(`Opening ${fileName} via API proxy...`, {
+                description: context ? `From: ${context}` : 'Using authenticated deliverable proxy',
+              });
+            }
+            return;
+          } else if (file.id) {
+            // Generic fallback proxy
+            const proxyUrl = `${API_BASE_URL}/files/proxy/${file.id}/?filename=${encodeURIComponent(fileName)}`;
+            
+            if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf'].includes(extension)) {
+              const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(proxyUrl)}&embedded=true`;
+              window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} with document viewer...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} file via fallback proxy + viewer`,
+              });
+            } else {
+              window.open(proxyUrl, '_blank', 'noopener,noreferrer');
+              toast.info(`Opening ${fileName} via fallback proxy...`, {
+                description: context ? `From: ${context}` : 'Using generic authenticated proxy',
+              });
+            }
+            return;
+          }
+          
+        } catch (apiError) {
+          console.warn('Error getting signed URL, trying direct access:', apiError);
+        }
+      }
+      
+      // For non-R2 URLs or fallback, handle based on file structure
+      if (file.id && !file.url) {
+        // File has ID but no direct URL - use API endpoints
+        try {
+          const previewUrl = `${API_BASE_URL}/files/preview/${file.id}`;
+          
+          if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf'].includes(extension)) {
+            // For Office docs and PDFs, use Google Docs Viewer with API endpoint
+            const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(previewUrl)}&embedded=true`;
+            window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+            toast.success(`Opening ${fileName} with document viewer...`, {
+              description: context ? `From: ${context}` : `${extension.toUpperCase()} file via API + viewer`,
+            });
+          } else {
+            window.open(previewUrl, '_blank', 'noopener,noreferrer');
+            toast.info(`Opening ${fileName} via API...`, {
+              description: context ? `From: ${context}` : 'Using API preview endpoint',
+            });
+          }
+          return;
+        } catch (apiError) {
+          console.warn('Error with API preview:', apiError);
+        }
+      }
+      
+      // Direct URL fallback (may fail for authenticated R2 URLs)
+      if (file.url && file.url.startsWith('http')) {
+        if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'pdf'].includes(extension)) {
+          // Try Google Docs Viewer for Office docs and PDFs with direct URL
+          const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(file.url)}&embedded=true`;
+          window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+          toast.warning(`Attempting to open ${fileName}...`, {
+            description: 'Using direct URL with document viewer - may fail if authentication required',
+          });
+        } else {
+          window.open(file.url, '_blank', 'noopener,noreferrer');
+          toast.warning(`Opening ${fileName} directly...`, {
+            description: 'Using direct URL - may fail if authentication required',
+          });
+        }
+      } else {
+        // No valid preview method available - fallback to download
+        toast.warning('Preview not available', {
+          description: 'File will be downloaded instead',
+        });
+        await handleDownloadFile(file, context);
+      }
     } catch (error) {
       console.error('Error previewing file:', error);
       toast.error('Failed to open file', {
-        description: 'Please try downloading the file instead.',
+        description: 'Please try downloading the file instead. Click download button to save the file.',
       });
     }
   };

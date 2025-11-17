@@ -103,6 +103,18 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
         { number: "0%", label: "Plagiarism" },
         { number: "A+", label: "Average Grade" }
       ]
+    },
+    {
+      title: "Turn Assignments, final year projects and school projects into Practical Programming Courses",
+      highlight: "Practical Programming Courses",
+      description: "We turn your assignment, school project or final year project into your practical programming course. Learn while achieving your academic goals.",
+      image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=600&h=400&fit=crop",
+      stats: [
+        { number: "10,000+", label: "Projects Transformed" },
+        { number: "95%", label: "Skill Improvement" },
+        { number: "100+", label: "Programming Languages" },
+        { number: "A++", label: "Learning Outcome" }
+      ]
     }
   ];
 
@@ -1105,19 +1117,19 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
                 
                 <div className="earnings-tiers">
                   <div className="tier-item">
-                    <div className="tier-referrals">5 referrals</div>
+                    <div className="tier-referrals">10 referrals</div>
                     <div className="tier-amount">$250/month</div>
                   </div>
                   
                   <div className="tier-item featured-tier">
                     <div className="tier-badge-featured">Most Popular</div>
-                    <div className="tier-referrals">15 referrals</div>
+                    <div className="tier-referrals">30 referrals</div>
                     <div className="tier-amount">$750/month</div>
                   </div>
                   
                   <div className="tier-item">
-                    <div className="tier-referrals">30+ referrals</div>
-                    <div className="tier-amount">$1,500+/month</div>
+                    <div className="tier-referrals">50+ referrals</div>
+                    <div className="tier-amount">$1,000+/month</div>
                   </div>
                 </div>
               </div>
@@ -1243,7 +1255,7 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
                     </div>
                     <div>
                       <div className="text-sm text-gray-400">Email us</div>
-                      <div className="text-white font-medium">iconmaxwells@gmail.com</div>
+                      <div className="text-white font-medium">thegradhelper@outlook.com</div>
                     </div>
                   </div>
                   
@@ -1302,6 +1314,21 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
                   <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
                     <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                     AI & Machine Learning
+                  </a></li>
+
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Academic Writings
+                  </a></li>
+
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Theses & Dissertations
+                  </a></li>
+
+                  <li><a href="#" className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center group">
+                    <ArrowRight className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    Software Contracts
                   </a></li>
                 </ul>
               </div>

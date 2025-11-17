@@ -440,7 +440,7 @@ notes: "Submission notes"
 ```
 
 ### GET /partnership-requests
-**Purpose**: Get partnership requests (filtered by role)
+**Purpose**: Get partnership requests (admin)
 **Query Parameters**:
 - `page`: int
 - `limit`: int

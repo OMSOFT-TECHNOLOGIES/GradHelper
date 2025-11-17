@@ -609,6 +609,73 @@
   }
 }
 
+/* Professional Enhancements */
+
+/* Loading Spinner */
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 0.5rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Form Error States */
+.form-input-error {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2;
+}
+
+.form-input-error:focus {
+  outline-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.form-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.form-error::before {
+  content: '⚠';
+  font-size: 0.75rem;
+}
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Disabled States */
+.btn:disabled,
+.form-input:disabled,
+.quick-action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* Focus and Accessibility */
 .benefit-card:focus-within,
 .stat-card:focus-within,
@@ -618,9 +685,44 @@
 }
 
 .quick-action-btn:focus-visible,
-.partnership-tabs .tab-button:focus-visible {
+.partnership-tabs .tab-button:focus-visible,
+.btn:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  .partnership-hero {
+    background: #000000;
+    color: #ffffff;
+  }
+  
+  .benefit-card,
+  .stat-card,
+  .card {
+    border-width: 2px;
+    border-color: #000000;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .benefit-card,
+  .stat-card,
+  .referral-item,
+  .quick-action-btn {
+    transition: none;
+  }
+  
+  .loading-spinner {
+    animation: none;
+    border: 2px solid currentColor;
+  }
+  
+  .stat-card .stat-content h3 {
+    animation: none;
+  }
 }
 
 /* Animation for stat cards */
@@ -637,4 +739,40 @@
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Improved Status Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.badge-success {
+  background-color: #dcfce7;
+  color: #166534;
+  border: 1px solid #22c55e;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fbbf24;
+}
+
+.badge-error {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #f87171;
+}
+
+.badge-secondary {
+  background-color: #f8fafc;
+  color: #475569;
+  border: 1px solid #cbd5e1;
 }

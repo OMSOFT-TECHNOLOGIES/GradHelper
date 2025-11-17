@@ -286,64 +286,20 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
   };
 
   return (
-    <div 
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: '32px 24px'
-      }}
-    >
+    <div className="min-h-screen bg-gray-50 p-6">
       {/* Professional Header */}
-      <div 
-        style={{
-          background: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(20px)',
-          borderRadius: '24px',
-          padding: '32px',
-          marginBottom: '32px',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.1), 0 8px 16px rgba(0, 0, 0, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.2)'
-        }}
-      >
+      <div className="bg-white rounded-2xl p-8 mb-8 shadow-sm border border-gray-100">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
-            <h1 
-              style={{
-                fontSize: '2.5rem',
-                fontWeight: '800',
-                background: 'linear-gradient(135deg, #1e40af 0%, #7c3aed 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                marginBottom: '8px'
-              }}
-            >
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
               Admin Dashboard
             </h1>
-            <p 
-              style={{
-                fontSize: '1.1rem',
-                color: '#64748b',
-                fontWeight: '500'
-              }}
-            >
+            <p className="text-lg text-gray-600 font-medium">
               Comprehensive overview of your platform's performance and analytics
             </p>
           </div>
           <div className="flex items-center space-x-4">
-            <div 
-              style={{
-                padding: '12px 20px',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                borderRadius: '12px',
-                color: 'white',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-              }}
-            >
+            <div className="px-5 py-3 bg-green-500 rounded-lg text-white font-semibold flex items-center gap-2 shadow-sm">
               <TrendingUp className="w-5 h-5" />
               <span>All Systems Operational</span>
             </div>
@@ -357,73 +313,32 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
           {stats.map((stat, index) => (
             <div 
               key={index} 
-              style={{
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(20px)',
-                borderRadius: '20px',
-                padding: '24px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
-                transition: 'all 0.3s ease',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.1)';
-              }}
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 cursor-pointer"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p 
-                    style={{
-                      fontSize: '0.875rem',
-                      color: '#64748b',
-                      fontWeight: '500',
-                      marginBottom: '8px'
-                    }}
-                  >
+                  <p className="text-sm text-gray-500 font-medium mb-2">
                     {stat.title}
                   </p>
-                  <p 
-                    style={{
-                      fontSize: '2rem',
-                      fontWeight: '800',
-                      color: '#1e293b',
-                      marginBottom: '8px'
-                    }}
-                  >
+                  <p className="text-3xl font-bold text-gray-900 mb-2">
                     {stat.value}
                   </p>
-                  <p 
-                    style={{
-                      fontSize: '0.875rem',
-                      fontWeight: '600',
-                      color: stat.trend.startsWith('+') ? '#10b981' : '#ef4444',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
+                  <p className={`text-sm font-semibold flex items-center gap-1 ${
+                    stat.trend.startsWith('+') ? 'text-green-600' : 'text-red-500'
+                  }`}>
                     {stat.trend.startsWith('+') ? 
                       <TrendingUp className="w-4 h-4" /> : 
-                      <div style={{ transform: 'rotate(180deg)' }}><TrendingUp className="w-4 h-4" /></div>
+                      <TrendingUp className="w-4 h-4 rotate-180" />
                     }
                     {stat.trend} from last month
                   </p>
                 </div>
-                <div 
-                  style={{
-                    padding: '16px',
-                    borderRadius: '16px',
-                    background: `${stat.color.replace('text-', '').replace('-600', '')}-50`,
-                    boxShadow: `0 4px 12px ${stat.color.replace('text-', '').replace('-600', '')}-200`
-                  }}
-                  className={`${stat.color.replace('text-', 'bg-').replace('-600', '-50')}`}
-                >
+                <div className={`p-4 rounded-xl ${
+                  stat.color.includes('blue') ? 'bg-blue-50' :
+                  stat.color.includes('green') ? 'bg-green-50' :
+                  stat.color.includes('orange') ? 'bg-orange-50' :
+                  'bg-emerald-50'
+                }`}>
                   <stat.icon className={`w-8 h-8 ${stat.color}`} />
                 </div>
               </div>
@@ -432,33 +347,12 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
         </div>
 
         {/* Enhanced Quick Actions */}
-        <div 
-          style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(20px)',
-            borderRadius: '24px',
-            padding: '32px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-          }}
-        >
+        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
           <div className="mb-8">
-            <h2 
-              style={{
-                fontSize: '1.875rem',
-                fontWeight: '700',
-                color: '#1e293b',
-                marginBottom: '8px'
-              }}
-            >
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Quick Actions
             </h2>
-            <p 
-              style={{
-                color: '#64748b',
-                fontSize: '1.1rem'
-              }}
-            >
+            <p className="text-gray-600 text-lg">
               Manage your most common administrative tasks with one-click access
             </p>
           </div>
@@ -467,68 +361,22 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
               <button
                 key={index}
                 onClick={() => handleQuickAction(action.title, action.action)}
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '20px',
-                  padding: '24px',
-                  transition: 'all 0.3s ease',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  textAlign: 'center',
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-6px) scale(1.02)';
-                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.15)';
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(255, 255, 255, 0.9) 100%)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0) scale(1)';
-                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08)';
-                  e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%)';
-                }}
+                className="bg-white border border-gray-200 rounded-xl p-6 hover:-translate-y-2 hover:shadow-lg transition-all duration-300 flex flex-col items-center text-center group"
               >
-                <div 
-                  style={{
-                    padding: '20px',
-                    borderRadius: '20px',
-                    marginBottom: '16px',
-                    background: action.color.includes('blue') ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' :
-                               action.color.includes('green') ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' :
-                               action.color.includes('purple') ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' :
-                               action.color.includes('orange') ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' :
-                               action.color.includes('yellow') ? 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)' :
-                               'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                    boxShadow: action.color.includes('blue') ? '0 8px 24px rgba(59, 130, 246, 0.3)' :
-                               action.color.includes('green') ? '0 8px 24px rgba(16, 185, 129, 0.3)' :
-                               action.color.includes('purple') ? '0 8px 24px rgba(139, 92, 246, 0.3)' :
-                               action.color.includes('orange') ? '0 8px 24px rgba(245, 158, 11, 0.3)' :
-                               action.color.includes('yellow') ? '0 8px 24px rgba(234, 179, 8, 0.3)' :
-                               '0 8px 24px rgba(99, 102, 241, 0.3)'
-                  }}
-                >
+                <div className={`p-5 rounded-full mb-4 group-hover:scale-110 transition-transform duration-300 ${
+                  action.color.includes('blue') ? 'bg-blue-500 shadow-blue-200' :
+                  action.color.includes('green') ? 'bg-green-500 shadow-green-200' :
+                  action.color.includes('purple') ? 'bg-purple-500 shadow-purple-200' :
+                  action.color.includes('orange') ? 'bg-orange-500 shadow-orange-200' :
+                  action.color.includes('yellow') ? 'bg-yellow-500 shadow-yellow-200' :
+                  'bg-indigo-500 shadow-indigo-200'
+                } shadow-lg`}>
                   <action.icon className="w-8 h-8 text-white" />
                 </div>
-                <h3 
-                  style={{
-                    fontWeight: '600',
-                    color: '#1e293b',
-                    fontSize: '1.125rem',
-                    marginBottom: '8px'
-                  }}
-                >
+                <h3 className="font-semibold text-gray-900 text-lg mb-2">
                   {action.title}
                 </h3>
-                <p 
-                  style={{
-                    color: '#64748b',
-                    fontSize: '0.9rem',
-                    lineHeight: '1.5'
-                  }}
-                >
+                <p className="text-gray-600 text-sm leading-relaxed">
                   {action.description}
                 </p>
               </button>
@@ -537,33 +385,12 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
         </div>
 
         {/* Enhanced Tasks Requiring Attention */}
-        <div 
-          style={{
-            background: 'rgba(255, 255, 255, 0.95)',
-            backdropFilter: 'blur(20px)',
-            borderRadius: '24px',
-            padding: '32px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-          }}
-        >
+        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
           <div className="mb-8">
-            <h2 
-              style={{
-                fontSize: '1.875rem',
-                fontWeight: '700',
-                color: '#1e293b',
-                marginBottom: '8px'
-              }}
-            >
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Tasks Requiring Attention
             </h2>
-            <p 
-              style={{
-                color: '#64748b',
-                fontSize: '1.1rem'
-              }}
-            >
+            <p className="text-gray-600 text-lg">
               Recent submissions and deliverables awaiting your review
             </p>
           </div>
@@ -571,118 +398,45 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
             {tasksRequiringAttention.map((task) => (
               <div 
                 key={task.id} 
-                style={{
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%)',
-                  border: '1px solid rgba(255, 255, 255, 0.3)',
-                  borderRadius: '20px',
-                  padding: '24px',
-                  transition: 'all 0.3s ease',
-                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.08)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 12px 32px rgba(0, 0, 0, 0.12)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 16px rgba(0, 0, 0, 0.08)';
-                }}
+                className="bg-white border border-gray-200 rounded-xl p-6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-6">
-                    <div 
-                      style={{
-                        width: '56px',
-                        height: '56px',
-                        borderRadius: '16px',
-                        overflow: 'hidden',
-                        border: '3px solid rgba(255, 255, 255, 0.8)',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-                      }}
-                    >
+                    <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-white shadow-md">
                       <img 
                         src={task.studentAvatar} 
                         alt={task.student} 
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover'
-                        }}
+                        className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="flex-1">
-                      <h4 
-                        style={{
-                          fontWeight: '600',
-                          fontSize: '1.25rem',
-                          color: '#1e293b',
-                          marginBottom: '8px'
-                        }}
-                      >
+                      <h4 className="font-semibold text-xl text-gray-900 mb-2">
                         {task.title}
                       </h4>
                       <div className="flex items-center space-x-6 mb-4">
-                        <p 
-                          style={{
-                            fontSize: '0.9rem',
-                            color: '#64748b',
-                            fontWeight: '500'
-                          }}
-                        >
-                          <span style={{ fontWeight: '600', color: '#374151' }}>Student:</span> {task.student}
+                        <p className="text-sm text-gray-600 font-medium">
+                          <span className="font-semibold text-gray-800">Student:</span> {task.student}
                         </p>
-                        <span 
-                          style={{
-                            fontSize: '0.9rem',
-                            color: '#64748b',
-                            fontWeight: '500'
-                          }}
-                        >
-                          <span style={{ fontWeight: '600', color: '#374151' }}>Type:</span> {task.type}
+                        <span className="text-sm text-gray-600 font-medium">
+                          <span className="font-semibold text-gray-800">Type:</span> {task.type}
                         </span>
-                        <span 
-                          style={{
-                            fontSize: '0.9rem',
-                            color: '#64748b',
-                            fontWeight: '500'
-                          }}
-                        >
-                          <span style={{ fontWeight: '600', color: '#374151' }}>Submitted:</span> {task.submittedAt}
+                        <span className="text-sm text-gray-600 font-medium">
+                          <span className="font-semibold text-gray-800">Submitted:</span> {task.submittedAt}
                         </span>
                       </div>
                       <div className="flex items-center space-x-3">
-                        <span 
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: '600',
-                            background: task.priority === 'High Priority' ? 'linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%)' :
-                                       task.priority === 'Medium' ? 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)' :
-                                       'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
-                            color: task.priority === 'High Priority' ? '#dc2626' :
-                                   task.priority === 'Medium' ? '#d97706' : '#16a34a',
-                            border: `1px solid ${task.priority === 'High Priority' ? '#fca5a5' :
-                                                 task.priority === 'Medium' ? '#fcd34d' : '#86efac'}`
-                          }}
-                        >
+                        <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+                          task.priority === 'High Priority' ? 'bg-red-50 text-red-700 border-red-200' :
+                          task.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                          'bg-green-50 text-green-700 border-green-200'
+                        }`}>
                           {task.priority}
                         </span>
-                        <span 
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem',
-                            fontWeight: '600',
-                            background: task.status === 'Pending Review' ? 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)' :
-                                       task.status === 'Pending Approval' ? 'linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)' :
-                                       'linear-gradient(135deg, #fecaca 0%, #fca5a5 100%)',
-                            color: task.status === 'Pending Review' ? '#1d4ed8' :
-                                   task.status === 'Pending Approval' ? '#ea580c' : '#dc2626',
-                            border: `1px solid ${task.status === 'Pending Review' ? '#93c5fd' :
-                                                 task.status === 'Pending Approval' ? '#fdba74' : '#fca5a5'}`
-                          }}
-                        >
+                        <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${
+                          task.status === 'Pending Review' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                          task.status === 'Pending Approval' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                          'bg-red-50 text-red-700 border-red-200'
+                        }`}>
                           {task.status}
                         </span>
                       </div>
@@ -691,76 +445,19 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
                   <div className="flex items-center space-x-3">
                     <button 
                       onClick={() => handleTaskReview(task.title)}
-                      style={{
-                        padding: '10px 16px',
-                        borderRadius: '12px',
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)',
-                        color: '#1d4ed8',
-                        border: '1px solid rgba(59, 130, 246, 0.3)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
-                        e.currentTarget.style.color = 'white';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%)';
-                        e.currentTarget.style.color = '#1d4ed8';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
+                      className="px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-sm font-semibold hover:bg-blue-500 hover:text-white hover:-translate-y-0.5 transition-all duration-200"
                     >
                       Review
                     </button>
                     <button 
                       onClick={() => handleTaskApproval(task.title, task.student)}
-                      style={{
-                        padding: '10px 16px',
-                        borderRadius: '12px',
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                        color: 'white',
-                        border: 'none',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.4)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
-                      }}
+                      className="px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
                     >
                       Approve
                     </button>
                     <button 
                       onClick={() => handleAddBill(task)}
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: '12px',
-                        background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)',
-                        color: '#d97706',
-                        border: '1px solid rgba(245, 158, 11, 0.3)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
-                        e.currentTarget.style.color = 'white';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)';
-                        e.currentTarget.style.color = '#d97706';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
+                      className="p-2.5 bg-orange-50 text-orange-600 border border-orange-200 rounded-lg hover:bg-orange-500 hover:text-white hover:-translate-y-0.5 transition-all duration-200"
                     >
                       <DollarSign className="w-5 h-5" />
                     </button>
@@ -773,55 +470,21 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
 
         {/* Enhanced Revenue Analytics */}
         <div className="space-y-8">
-          <div 
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: '24px',
-              padding: '32px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-            }}
-          >
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
               <div>
-                <h2 
-                  style={{
-                    fontSize: '2rem',
-                    fontWeight: '700',
-                    color: '#1e293b',
-                    marginBottom: '8px'
-                  }}
-                >
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">
                   Revenue Analytics
                 </h2>
-                <p 
-                  style={{
-                    color: '#64748b',
-                    fontSize: '1.1rem'
-                  }}
-                >
+                <p className="text-gray-600 text-lg">
                   Comprehensive financial performance insights and trends
                 </p>
               </div>
               <div className="flex items-center space-x-3">
-                <div 
-                  style={{
-                    padding: '12px',
-                    borderRadius: '16px',
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                  }}
-                >
+                <div className="p-3 bg-blue-500 rounded-xl shadow-sm">
                   <BarChart3 className="w-6 h-6 text-white" />
                 </div>
-                <span 
-                  style={{
-                    fontSize: '1rem',
-                    color: '#64748b',
-                    fontWeight: '500'
-                  }}
-                >
+                <span className="text-gray-600 font-medium">
                   Financial Performance
                 </span>
               </div>
@@ -829,233 +492,81 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
 
             {/* Enhanced Revenue Metrics Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div 
-                style={{
-                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
-                  borderRadius: '20px',
-                  padding: '24px',
-                  transition: 'all 0.3s ease'
-                }}
-              >
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p 
-                      style={{
-                        fontSize: '0.875rem',
-                        color: '#64748b',
-                        fontWeight: '500',
-                        marginBottom: '8px'
-                      }}
-                    >
+                    <p className="text-sm text-gray-500 font-medium mb-2">
                       Monthly Revenue
                     </p>
-                    <p 
-                      style={{
-                        fontSize: '2rem',
-                        fontWeight: '800',
-                        color: '#1d4ed8',
-                        marginBottom: '8px'
-                      }}
-                    >
+                    <p className="text-3xl font-bold text-blue-600 mb-2">
                       $13,200
                     </p>
-                    <p 
-                      style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        color: '#10b981',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
+                    <p className="text-sm font-semibold text-green-600 flex items-center gap-1">
                       <TrendingUp className="w-4 h-4" />
                       +6.1% vs last month
                     </p>
                   </div>
-                  <div 
-                    style={{
-                      padding: '16px',
-                      borderRadius: '16px',
-                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                      boxShadow: '0 8px 24px rgba(59, 130, 246, 0.3)'
-                    }}
-                  >
+                  <div className="p-4 bg-blue-500 rounded-xl shadow-sm">
                     <DollarSign className="w-8 h-8 text-white" />
                   </div>
                 </div>
               </div>
 
-              <div 
-                style={{
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%)',
-                  border: '1px solid rgba(16, 185, 129, 0.2)',
-                  borderRadius: '20px',
-                  padding: '24px',
-                  transition: 'all 0.3s ease'
-                }}
-              >
+              <div className="bg-green-50 border border-green-100 rounded-xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p 
-                      style={{
-                        fontSize: '0.875rem',
-                        color: '#64748b',
-                        fontWeight: '500',
-                        marginBottom: '8px'
-                      }}
-                    >
+                    <p className="text-sm text-gray-500 font-medium mb-2">
                       Profit Margin
                     </p>
-                    <p 
-                      style={{
-                        fontSize: '2rem',
-                        fontWeight: '800',
-                        color: '#059669',
-                        marginBottom: '8px'
-                      }}
-                    >
+                    <p className="text-3xl font-bold text-green-600 mb-2">
                       68.2%
                     </p>
-                    <p 
-                      style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        color: '#10b981',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
+                    <p className="text-sm font-semibold text-green-600 flex items-center gap-1">
                       <TrendingUp className="w-4 h-4" />
                       +2.4% vs last month
                     </p>
                   </div>
-                  <div 
-                    style={{
-                      padding: '16px',
-                      borderRadius: '16px',
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      boxShadow: '0 8px 24px rgba(16, 185, 129, 0.3)'
-                    }}
-                  >
+                  <div className="p-4 bg-green-500 rounded-xl shadow-sm">
                     <TrendingUp className="w-8 h-8 text-white" />
                   </div>
                 </div>
               </div>
 
-              <div 
-                style={{
-                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(124, 58, 237, 0.05) 100%)',
-                  border: '1px solid rgba(139, 92, 246, 0.2)',
-                  borderRadius: '20px',
-                  padding: '24px',
-                  transition: 'all 0.3s ease'
-                }}
-              >
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p 
-                      style={{
-                        fontSize: '0.875rem',
-                        color: '#64748b',
-                        fontWeight: '500',
-                        marginBottom: '8px'
-                      }}
-                    >
+                    <p className="text-sm text-gray-500 font-medium mb-2">
                       Average Order Value
                     </p>
-                    <p 
-                      style={{
-                        fontSize: '2rem',
-                        fontWeight: '800',
-                        color: '#7c3aed',
-                        marginBottom: '8px'
-                      }}
-                    >
+                    <p className="text-3xl font-bold text-purple-600 mb-2">
                       $285
                     </p>
-                    <p 
-                      style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        color: '#10b981',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
+                    <p className="text-sm font-semibold text-green-600 flex items-center gap-1">
                       <TrendingUp className="w-4 h-4" />
                       +12.5% vs last month
                     </p>
                   </div>
-                  <div 
-                    style={{
-                      padding: '16px',
-                      borderRadius: '16px',
-                      background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                      boxShadow: '0 8px 24px rgba(139, 92, 246, 0.3)'
-                    }}
-                  >
+                  <div className="p-4 bg-purple-500 rounded-xl shadow-sm">
                     <BarChart3 className="w-8 h-8 text-white" />
                   </div>
                 </div>
               </div>
 
-              <div 
-                style={{
-                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)',
-                  border: '1px solid rgba(245, 158, 11, 0.2)',
-                  borderRadius: '20px',
-                  padding: '24px',
-                  transition: 'all 0.3s ease'
-                }}
-              >
+              <div className="bg-orange-50 border border-orange-100 rounded-xl p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p 
-                      style={{
-                        fontSize: '0.875rem',
-                        color: '#64748b',
-                        fontWeight: '500',
-                        marginBottom: '8px'
-                      }}
-                    >
+                    <p className="text-sm text-gray-500 font-medium mb-2">
                       Total Orders
                     </p>
-                    <p 
-                      style={{
-                        fontSize: '2rem',
-                        fontWeight: '800',
-                        color: '#d97706',
-                        marginBottom: '8px'
-                      }}
-                    >
+                    <p className="text-3xl font-bold text-orange-600 mb-2">
                       46
                     </p>
-                    <p 
-                      style={{
-                        fontSize: '0.875rem',
-                        fontWeight: '600',
-                        color: '#ef4444',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      <div style={{ transform: 'rotate(180deg)' }}><TrendingUp className="w-4 h-4" /></div>
+                    <p className="text-sm font-semibold text-red-500 flex items-center gap-1">
+                      <TrendingUp className="w-4 h-4 rotate-180" />
                       -3.2% vs last month
                     </p>
                   </div>
-                  <div 
-                    style={{
-                      padding: '16px',
-                      borderRadius: '16px',
-                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                      boxShadow: '0 8px 24px rgba(245, 158, 11, 0.3)'
-                    }}
-                  >
+                  <div className="p-4 bg-orange-500 rounded-xl shadow-sm">
                     <FileText className="w-8 h-8 text-white" />
                   </div>
                 </div>
@@ -1064,33 +575,12 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
           </div>
 
           {/* Enhanced Monthly Revenue Trend */}
-          <div 
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: '24px',
-              padding: '32px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-            }}
-          >
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
             <div className="mb-8">
-              <h3 
-                style={{
-                  fontSize: '1.5rem',
-                  fontWeight: '700',
-                  color: '#1e293b',
-                  marginBottom: '8px'
-                }}
-              >
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
                 Monthly Revenue Trend
               </h3>
-              <p 
-                style={{
-                  color: '#64748b',
-                  fontSize: '1rem'
-                }}
-              >
+              <p className="text-gray-600">
                 Revenue, expenses, and profit over the last 7 months
               </p>
             </div>
@@ -1151,33 +641,12 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
           {/* Enhanced Revenue Breakdown and Daily Revenue */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue by Service Type */}
-            <div 
-              style={{
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(20px)',
-                borderRadius: '24px',
-                padding: '32px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-              }}
-            >
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
               <div className="mb-6">
-                <h3 
-                  style={{
-                    fontSize: '1.5rem',
-                    fontWeight: '700',
-                    color: '#1e293b',
-                    marginBottom: '8px'
-                  }}
-                >
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   Revenue by Service Type
                 </h3>
-                <p 
-                  style={{
-                    color: '#64748b',
-                    fontSize: '1rem'
-                  }}
-                >
+                <p className="text-gray-600">
                   Breakdown of revenue sources this month
                 </p>
               </div>
@@ -1215,30 +684,14 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
                   <div key={item.name} className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <div 
-                        style={{
-                          width: '12px',
-                          height: '12px',
-                          borderRadius: '50%',
-                          backgroundColor: COLORS[index],
-                          boxShadow: `0 2px 4px ${COLORS[index]}40`
-                        }}
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: COLORS[index] }}
                       />
-                      <span 
-                        style={{
-                          fontSize: '0.9rem',
-                          color: '#374151',
-                          fontWeight: '500'
-                        }}
-                      >
+                      <span className="text-sm text-gray-700 font-medium">
                         {item.name}
                       </span>
                     </div>
-                    <span 
-                      style={{
-                        fontWeight: '600',
-                        color: '#1e293b'
-                      }}
-                    >
+                    <span className="font-semibold text-gray-900">
                       ${item.value.toLocaleString()}
                     </span>
                   </div>
@@ -1247,33 +700,12 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
             </div>
 
             {/* Daily Revenue This Month */}
-            <div 
-              style={{
-                background: 'rgba(255, 255, 255, 0.95)',
-                backdropFilter: 'blur(20px)',
-                borderRadius: '24px',
-                padding: '32px',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-              }}
-            >
+            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
               <div className="mb-6">
-                <h3 
-                  style={{
-                    fontSize: '1.5rem',
-                    fontWeight: '700',
-                    color: '#1e293b',
-                    marginBottom: '8px'
-                  }}
-                >
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   Daily Revenue - January
                 </h3>
-                <p 
-                  style={{
-                    color: '#64748b',
-                    fontSize: '1rem'
-                  }}
-                >
+                <p className="text-gray-600">
                   Daily revenue breakdown for current month
                 </p>
               </div>
@@ -1691,212 +1123,80 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
 
         {/* Professional Performance Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div 
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: '24px',
-              padding: '32px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-            }}
-          >
-            <h3 
-              style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                color: '#1e293b',
-                marginBottom: '24px'
-              }}
-            >
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">
               Student Performance
             </h3>
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <span 
-                  style={{
-                    fontSize: '1rem',
-                    color: '#64748b',
-                    fontWeight: '500'
-                  }}
-                >
+                <span className="text-gray-600 font-medium">
                   Average Grade
                 </span>
-                <span 
-                  style={{
-                    fontWeight: '700',
-                    fontSize: '1.125rem',
-                    color: '#10b981'
-                  }}
-                >
+                <span className="font-bold text-lg text-green-600">
                   A-
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span 
-                  style={{
-                    fontSize: '1rem',
-                    color: '#64748b',
-                    fontWeight: '500'
-                  }}
-                >
+                <span className="text-gray-600 font-medium">
                   Completion Rate
                 </span>
-                <span 
-                  style={{
-                    fontWeight: '700',
-                    fontSize: '1.125rem',
-                    color: '#3b82f6'
-                  }}
-                >
+                <span className="font-bold text-lg text-blue-600">
                   94%
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span 
-                  style={{
-                    fontSize: '1rem',
-                    color: '#64748b',
-                    fontWeight: '500'
-                  }}
-                >
+                <span className="text-gray-600 font-medium">
                   On-Time Delivery
                 </span>
-                <span 
-                  style={{
-                    fontWeight: '700',
-                    fontSize: '1.125rem',
-                    color: '#8b5cf6'
-                  }}
-                >
+                <span className="font-bold text-lg text-purple-600">
                   87%
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span 
-                  style={{
-                    fontSize: '1rem',
-                    color: '#64748b',
-                    fontWeight: '500'
-                  }}
-                >
+                <span className="text-gray-600 font-medium">
                   Student Satisfaction
                 </span>
-                <span 
-                  style={{
-                    fontWeight: '700',
-                    fontSize: '1.125rem',
-                    color: '#f59e0b'
-                  }}
-                >
+                <span className="font-bold text-lg text-orange-600">
                   4.8/5
                 </span>
               </div>
             </div>
           </div>
 
-          <div 
-            style={{
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(20px)',
-              borderRadius: '24px',
-              padding: '32px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-            }}
-          >
-            <h3 
-              style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                color: '#1e293b',
-                marginBottom: '24px'
-              }}
-            >
+          <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">
               Recent Achievements
             </h3>
             <div className="space-y-4">
               <div className="flex items-center space-x-4">
-                <div 
-                  style={{
-                    padding: '8px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)'
-                  }}
-                >
+                <div className="p-2 bg-green-500 rounded-lg shadow-sm">
                   <CheckCircle className="w-5 h-5 text-white" />
                 </div>
-                <span 
-                  style={{
-                    fontSize: '1rem',
-                    color: '#374151',
-                    fontWeight: '500'
-                  }}
-                >
+                <span className="text-gray-700 font-medium">
                   10 projects completed this week
                 </span>
               </div>
               <div className="flex items-center space-x-4">
-                <div 
-                  style={{
-                    padding: '8px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)',
-                    boxShadow: '0 4px 12px rgba(234, 179, 8, 0.3)'
-                  }}
-                >
+                <div className="p-2 bg-yellow-500 rounded-lg shadow-sm">
                   <Star className="w-5 h-5 text-white" />
                 </div>
-                <span 
-                  style={{
-                    fontSize: '1rem',
-                    color: '#374151',
-                    fontWeight: '500'
-                  }}
-                >
+                <span className="text-gray-700 font-medium">
                   3 new 5-star reviews received
                 </span>
               </div>
               <div className="flex items-center space-x-4">
-                <div 
-                  style={{
-                    padding: '8px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                  }}
-                >
+                <div className="p-2 bg-blue-500 rounded-lg shadow-sm">
                   <TrendingUp className="w-5 h-5 text-white" />
                 </div>
-                <span 
-                  style={{
-                    fontSize: '1rem',
-                    color: '#374151',
-                    fontWeight: '500'
-                  }}
-                >
+                <span className="text-gray-700 font-medium">
                   Revenue increased by 18%
                 </span>
               </div>
               <div className="flex items-center space-x-4">
-                <div 
-                  style={{
-                    padding: '8px',
-                    borderRadius: '12px',
-                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
-                  }}
-                >
+                <div className="p-2 bg-purple-500 rounded-lg shadow-sm">
                   <Users className="w-5 h-5 text-white" />
                 </div>
-                <span 
-                  style={{
-                    fontSize: '1rem',
-                    color: '#374151',
-                    fontWeight: '500'
-                  }}
-                >
+                <span className="text-gray-700 font-medium">
                   12 new students joined
                 </span>
               </div>

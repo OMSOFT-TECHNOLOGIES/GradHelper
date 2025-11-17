@@ -81,14 +81,24 @@ export function AuthPage({ onBack, onAuth, onRoleChange }: AuthPageProps) {
       setErrors({});
       const access_token = tokenResponse.access_token;
       console.log('Google OAuth Debug:', { access_token, role: selectedRole });
+      // Parse referral code from URL
+      let referralCode = '';
+      const urlParams = new URLSearchParams(window.location.search);
+      referralCode = urlParams.get('ref') || '';
       try {
+        const payload: Record<string, any> = { access_token, role: selectedRole };
+        if (referralCode) {
+          payload.referral_code = referralCode;
+        }
+        console.log('Submitting to Google login with payload:', payload);
         const res = await fetch(`${API_BASE_URL}/auth/google/login/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ access_token, role: selectedRole })
+          body: JSON.stringify(payload)
         });
         const data = await res.json();
-        console.log('Google login backend response:', data);
+         
+        
         // Accept multiple backend response formats for Google login
         if (
           (data.status === 'success' && data.user && data.tokens) ||
@@ -274,6 +284,12 @@ export function AuthPage({ onBack, onAuth, onRoleChange }: AuthPageProps) {
     }
     try {
       const endpoint = isSignUp ? '/auth/register/' : '/auth/login/';
+      // Parse referral code from URL
+      let referralCode = '';
+      if (isSignUp) {
+        const urlParams = new URLSearchParams(window.location.search);
+        referralCode = urlParams.get('ref') || '';
+      }
       const payload = isSignUp
         ? {
             username: formData.email,
@@ -282,12 +298,13 @@ export function AuthPage({ onBack, onAuth, onRoleChange }: AuthPageProps) {
             password2: formData.confirmPassword,
             first_name: formData.firstName,
             last_name: formData.lastName,
+            ...(referralCode ? { referral_code: referralCode } : {})
           }
         : {
             username: formData.email,
             password: formData.password
           };
-          console.log('Submitting to endpoint:', endpoint, 'with payload:', payload);
+      console.log('Submitting to endpoint:', endpoint, 'with payload:', payload);
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: {
@@ -298,14 +315,13 @@ export function AuthPage({ onBack, onAuth, onRoleChange }: AuthPageProps) {
       const data = await res.json();
       if (isSignUp) {
         if (res.ok) {
-      // Registration success: show toast, switch to login
-      toast.success('Registration successful! Please check your email to verify your account, then login.');
-      setIsSignUp(false);
+          // Registration success: show toast, switch to login
+          toast.success('Registration successful! Please check your email to verify your account, then login.');
+          setIsSignUp(false);
         } else {
-      toast.error(data.error?.message || data.message || 'Registration failed. Please try again.');
+          toast.error(data.error?.message || data.message || 'Registration failed. Please try again.');
         }
       } else {
-        
         // Accept multiple backend response formats for login
         if (data.user) {
           onAuth(data.user);
@@ -321,8 +337,8 @@ export function AuthPage({ onBack, onAuth, onRoleChange }: AuthPageProps) {
           onAuth({ username: data.username, token: data.token });
           localStorage.setItem('gradhelper_token', data.token);
         } else {
-      toast.error(data.error?.message || data.message || 'Authentication failed. Please try again.');
-      setErrors({ general: data.error?.message || data.message || 'Authentication failed. Please try again.' });
+          toast.error(data.error?.message || data.message || 'Authentication failed. Please try again.');
+          setErrors({ general: data.error?.message || data.message || 'Authentication failed. Please try again.' });
         }
       }
     } catch (error) {

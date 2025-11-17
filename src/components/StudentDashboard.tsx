@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, 
   Clock, 
@@ -6,51 +7,198 @@ import {
   FileText, 
   MessageCircle,
   Plus,
-  TrendingUp,
   Calendar,
-  Award,
-  Target,
   AlertCircle,
   UserPlus,
   Share2,
   Star
 } from 'lucide-react';
+import { API_BASE_URL } from '../utils/api';
 
 interface StudentDashboardProps {
   onViewChange: (view: string) => void;
 }
 
+interface TaskSummary {
+  total_active_tasks: number;
+  completed_tasks: number;
+  pending_tasks: number;
+  total_tasks: number;
+}
+
+interface RecentTask {
+  id: number;
+  title: string;
+  type: string;
+  status: string;
+  priority: string;
+  deadline: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface UpcomingDeadline {
+  id: number;
+  title: string;
+  type: string;
+  deadline: string;
+  status: string;
+  priority: string;
+  days_remaining: number;
+}
+
+interface DashboardStats {
+  tasks_this_month: number;
+  overdue_tasks: number;
+}
+
+interface DashboardData {
+  task_summary: TaskSummary;
+  recent_tasks: RecentTask[];
+  upcoming_deadlines: UpcomingDeadline[];
+  dashboard_stats: DashboardStats;
+}
+
 export function StudentDashboard({ onViewChange }: StudentDashboardProps) {
-  const stats = [
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('Student');
+
+  // Get username from localStorage
+  useEffect(() => {
+    const getUserName = () => {
+      try {
+        const savedUser = localStorage.getItem('gradhelper_user');
+        if (savedUser) {
+          const userData = JSON.parse(savedUser);
+          // Try different possible username fields
+          const name = userData.first_name || userData.name || userData.username || 'Student';
+          setUserName(name);
+        }
+      } catch (error) {
+        console.error('Error getting username:', error);
+        setUserName('Student'); // Fallback
+      }
+    };
+
+    getUserName();
+  }, []);
+
+  // Fetch dashboard data from API
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const token = localStorage.getItem('gradhelper_token');
+        if (!token) {
+          setError('No authentication token found');
+          setIsLoading(false);
+          return;
+        }
+
+        const response = await fetch(`${API_BASE_URL}/accounts/student/dashboard`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('Dashboard data:', data);
+        setDashboardData(data);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  // Helper function to get task status color
+  const getTaskStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 'bg-green-100 text-green-800';
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800';
+      case 'pending':
+        return 'bg-orange-100 text-orange-800';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Helper function to get priority color
+  const getPriorityColor = (priority: string) => {
+    switch (priority.toLowerCase()) {
+      case 'high':
+        return 'bg-red-100 text-red-800';
+      case 'medium':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'low':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  // Helper function to calculate progress based on status
+  const getTaskProgress = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'completed':
+        return 100;
+      case 'in_progress':
+        return 60;
+      case 'pending':
+        return 30;
+      case 'cancelled':
+        return 0;
+      default:
+        return 0;
+    }
+  };
+
+  // Generate stats from API data
+  const stats = dashboardData ? [
     {
       title: "Active Tasks",
-      value: "3",
+      value: dashboardData.task_summary.total_active_tasks.toString(),
       icon: FileText,
-      trend: "+1 this week",
+      trend: `${dashboardData.dashboard_stats.tasks_this_month} this month`,
       color: "text-blue-600"
     },
     {
       title: "Completed",
-      value: "12",
+      value: dashboardData.task_summary.completed_tasks.toString(),
       icon: CheckCircle,
-      trend: "94% success rate",
+      trend: `${dashboardData.task_summary.total_tasks} total tasks`,
       color: "text-green-600"
     },
     {
-      title: "Pending Review",
-      value: "2",
+      title: "Pending Tasks",
+      value: dashboardData.task_summary.pending_tasks.toString(),
       icon: Clock,
-      trend: "Avg 2 days",
+      trend: `${dashboardData.dashboard_stats.overdue_tasks} overdue`,
       color: "text-orange-600"
     },
     {
-      title: "Total Spent",
-      value: "$1,240",
-      icon: DollarSign,
-      trend: "This semester",
+      title: "Upcoming Deadlines",
+      value: dashboardData.upcoming_deadlines.length.toString(),
+      icon: Calendar,
+      trend: "Next 7 days",
       color: "text-purple-600"
     }
-  ];
+  ] : [];
 
   const quickActions = [
     {
@@ -91,90 +239,52 @@ export function StudentDashboard({ onViewChange }: StudentDashboardProps) {
     }
   ];
 
-  const recentTasks = [
-    {
-      id: 1,
-      title: "Machine Learning Research Paper",
-      type: "Final Year Project",
-      status: "In Progress",
-      progress: 75,
-      dueDate: "2025-02-15",
-      statusColor: "bg-blue-100 text-blue-800",
-      priority: "High"
-    },
-    {
-      id: 2,
-      title: "Database Design Assignment",
-      type: "Assignment",
-      status: "Under Review",
-      progress: 100,
-      dueDate: "2025-01-30",
-      statusColor: "bg-orange-100 text-orange-800",
-      priority: "Medium"
-    },
-    {
-      id: 3,
-      title: "Web Development Project",
-      type: "Project",
-      status: "Not Started",
-      progress: 0,
-      dueDate: "2025-02-28",
-      statusColor: "bg-gray-100 text-gray-800",
-      priority: "Low"
-    }
-  ];
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="card">
+          <div className="card-content p-6">
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-2">Loading dashboard...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const recentActivity = [
-    {
-      type: "deliverable_approved",
-      message: "Literature Review approved",
-      time: "2 hours ago",
-      icon: CheckCircle,
-      color: "text-green-500"
-    },
-    {
-      type: "meeting_scheduled",
-      message: "Meeting scheduled for tomorrow",
-      time: "4 hours ago",
-      icon: Calendar,
-      color: "text-blue-500"
-    },
-    {
-      type: "feedback_received",
-      message: "New feedback on ER Diagram",
-      time: "4 hours ago",
-      icon: MessageCircle,
-      color: "text-blue-500"
-    },
-    {
-      type: "partnership_earnings",
-      message: "Earned $25 from referral",
-      time: "1 day ago",
-      icon: DollarSign,
-      color: "text-green-500"
-    }
-  ];
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="card">
+          <div className="card-content p-6">
+            <div className="flex items-center justify-center text-red-600">
+              <AlertCircle className="w-6 h-6 mr-2" />
+              <span>{error}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const upcomingDeadlines = [
-    {
-      task: "ML Research Paper - Final Draft",
-      date: "Feb 15, 2025",
-      daysLeft: 18,
-      urgent: false
-    },
-    {
-      task: "Database Assignment - Presentation",
-      date: "Feb 01, 2025",
-      daysLeft: 4,
-      urgent: true
-    },
-    {
-      task: "Meeting with Dr. Smith",
-      date: "Jan 31, 2025",
-      daysLeft: 3,
-      urgent: false
-    }
-  ];
+  // No data state
+  if (!dashboardData) {
+    return (
+      <div className="space-y-6">
+        <div className="card">
+          <div className="card-content p-6">
+            <div className="text-center">
+              <span>No dashboard data available</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -183,18 +293,26 @@ export function StudentDashboard({ onViewChange }: StudentDashboardProps) {
         <div className="card-content p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold">Welcome back, Sarah! 👋</h1>
+              <h1 className="text-2xl font-bold">Welcome back, {userName}! 👋</h1>
               <p className="text-muted-foreground mt-1">
                 Here's what's happening with your projects today.
               </p>
             </div>
-            <button 
-              className="btn btn-primary"
-              onClick={() => onViewChange('post-task')}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Post New Task
-            </button>
+            <div className="flex gap-2">
+              <button 
+                className="btn btn-outline btn-sm"
+                onClick={() => window.location.reload()}
+              >
+                Refresh
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={() => onViewChange('post-task')}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Post New Task
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -250,75 +368,63 @@ export function StudentDashboard({ onViewChange }: StudentDashboardProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Tasks */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">My Recent Tasks</h3>
-            <button 
-              className="btn btn-outline btn-sm"
-              onClick={() => onViewChange('my-tasks')}
-            >
-              View All
-            </button>
-          </div>
-          <div className="card-content">
-            <div className="space-y-4">
-              {recentTasks.map((task) => (
+      {/* Recent Tasks */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">My Recent Tasks</h3>
+          <button 
+            className="btn btn-outline btn-sm"
+            onClick={() => onViewChange('my-tasks')}
+          >
+            View All
+          </button>
+        </div>
+        <div className="card-content">
+          <div className="space-y-4">
+            {dashboardData.recent_tasks.length > 0 ? (
+              dashboardData.recent_tasks.map((task) => (
                 <div key={task.id} className="border border-border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium">{task.title}</h4>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${task.statusColor}`}>
-                      {task.status}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTaskStatusColor(task.status)}`}>
+                      {task.status.replace('_', ' ')}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-muted-foreground mb-3">
                     <span>{task.type}</span>
-                    <span>Due: {task.dueDate}</span>
+                    <span>Due: {new Date(task.deadline).toLocaleDateString()}</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
                     <div 
                       className="bg-primary h-2 rounded-full transition-all"
-                      style={{ width: `${task.progress}%` }}
+                      style={{ width: `${getTaskProgress(task.status)}%` }}
                     />
                   </div>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-xs text-muted-foreground">
-                      {task.progress}% complete
+                      {getTaskProgress(task.status)}% complete
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded ${
-                      task.priority === 'High' ? 'bg-red-100 text-red-800' :
-                      task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-green-100 text-green-800'
-                    }`}>
+                    <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(task.priority)}`}>
                       {task.priority}
                     </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Recent Activity</h3>
-          </div>
-          <div className="card-content">
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-full bg-opacity-10 ${activity.color}`}>
-                    <activity.icon className={`w-4 h-4 ${activity.color}`} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{activity.message}</p>
-                    <p className="text-xs text-muted-foreground">{activity.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+              ))
+            ) : (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h4 className="text-lg font-semibold mb-2">No recent tasks</h4>
+                <p className="text-muted-foreground mb-4">
+                  Start by posting your first task to get expert help
+                </p>
+                <button 
+                  className="btn btn-primary btn-sm"
+                  onClick={() => onViewChange('post-task')}
+                >
+                  Post New Task
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -331,97 +437,49 @@ export function StudentDashboard({ onViewChange }: StudentDashboardProps) {
         </div>
         <div className="card-content">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {upcomingDeadlines.map((deadline, index) => (
-              <div 
-                key={index} 
-                className={`p-4 border rounded-lg ${
-                  deadline.urgent ? 'border-red-200 bg-red-50' : 'border-border'
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-medium text-sm">{deadline.task}</h4>
-                  {deadline.urgent && (
-                    <AlertCircle className="w-4 h-4 text-red-500" />
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground mb-2">{deadline.date}</p>
-                <div className="flex items-center justify-between">
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    deadline.urgent 
-                      ? 'bg-red-100 text-red-800' 
-                      : 'bg-blue-100 text-blue-800'
-                  }`}>
-                    {deadline.daysLeft} days left
-                  </span>
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Performance Summary */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Academic Performance</h3>
-          </div>
-          <div className="card-content">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Average Grade</span>
-                <span className="font-medium">A-</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Projects Completed</span>
-                <span className="font-medium">12/15</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">On-Time Delivery</span>
-                <span className="font-medium">94%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Expert Rating</span>
-                <div className="flex items-center space-x-1">
-                  <span className="font-medium">4.8</span>
-                  <div className="flex">
-                    {[1,2,3,4,5].map(star => (
-                      <Award key={star} className="w-3 h-3 text-yellow-400 fill-current" />
-                    ))}
+            {dashboardData.upcoming_deadlines.length > 0 ? (
+              dashboardData.upcoming_deadlines.map((deadline) => (
+                <div 
+                  key={deadline.id} 
+                  className={`p-4 border rounded-lg ${
+                    deadline.days_remaining <= 3 ? 'border-red-200 bg-red-50' : 'border-border'
+                  }`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-medium text-sm">{deadline.title}</h4>
+                    {deadline.days_remaining <= 3 && (
+                      <AlertCircle className="w-4 h-4 text-red-500" />
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {new Date(deadline.deadline).toLocaleDateString()}
+                  </p>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      deadline.days_remaining <= 3
+                        ? 'bg-red-100 text-red-800' 
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {deadline.days_remaining} days left
+                    </span>
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
                   </div>
                 </div>
+              ))
+            ) : (
+              <div className="col-span-full text-center py-8">
+                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h4 className="text-lg font-semibold mb-2">No upcoming deadlines</h4>
+                <p className="text-muted-foreground">
+                  All your tasks are up to date!
+                </p>
               </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">This Month's Goals</h3>
-          </div>
-          <div className="card-content">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <Target className="w-5 h-5 text-green-500" />
-                <span className="text-sm">Complete ML research paper</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <CheckCircle className="w-5 h-5 text-blue-500" />
-                <span className="text-sm">Submit database assignment</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <TrendingUp className="w-5 h-5 text-purple-500" />
-                <span className="text-sm">Maintain A- average</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <Calendar className="w-5 h-5 text-orange-500" />
-                <span className="text-sm">Plan next semester courses</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
+
+
     </div>
   );
 }

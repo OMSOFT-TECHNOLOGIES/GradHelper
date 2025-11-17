@@ -92,15 +92,41 @@ class FileService {
       return false;
     }
     const extension = fileName.split('.').pop()?.toLowerCase();
-    const previewableExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'svg', 'txt', 'md'];
+    
+    // Extended list of previewable extensions
+    const previewableExtensions = [
+      // Documents
+      'pdf', 'txt', 'md', 'html', 'htm', 'xml', 'json', 'csv',
+      // Images
+      'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico',
+      // Videos
+      'mp4', 'webm', 'ogg', 'mov', 'avi',
+      // Audio
+      'mp3', 'wav', 'ogg', 'm4a',
+      // Office documents (modern browsers can preview these)
+      'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+      // Code files
+      'js', 'ts', 'jsx', 'tsx', 'css', 'scss', 'less', 'json', 'yml', 'yaml',
+      'py', 'java', 'cpp', 'c', 'h', 'php', 'rb', 'go', 'rs', 'swift'
+    ];
+    
     const previewableMimeTypes = [
-      'application/pdf',
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/svg+xml',
-      'text/plain',
-      'text/markdown'
+      // Documents
+      'application/pdf', 'text/plain', 'text/markdown', 'text/html', 
+      'text/xml', 'application/xml', 'application/json', 'text/csv',
+      // Images
+      'image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 
+      'image/webp', 'image/bmp', 'image/x-icon',
+      // Videos
+      'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-msvideo',
+      // Audio
+      'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4',
+      // Office documents
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      // Code files
+      'text/javascript', 'text/typescript', 'text/css', 'application/javascript'
     ];
 
     return Boolean(

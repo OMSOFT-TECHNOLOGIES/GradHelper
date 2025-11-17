@@ -1,8 +1,8 @@
 /**
- * Professional Partnership Requests Management View
+ * Enhanced Partnership Requests View with API Integration
  * 
- * Administrative interface for reviewing and managing partnership applications
- * with comprehensive features, error handling, and accessibility
+ * This example shows how to integrate the Partnership API service
+ * with the existing professional partnership components
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -15,7 +15,10 @@ import { RequestDetailModal } from './partnership/RequestDetailModal';
 import { RejectModal } from './partnership/RejectModal';
 import { filterRequests, getRequestCounts, sortRequests, createSearchDebouncer } from './partnership/helpers';
 import { ADMIN_CONFIG, SUCCESS_MESSAGES, ERROR_MESSAGES } from './partnership/constants';
-import { partnershipService } from '../services/partnershipApiService';
+
+// Import the API integration hook
+import { usePartnershipApi } from '../services/partnershipApiService';
+
 import { 
   PartnershipRequest, 
   FilterType, 
@@ -24,15 +27,34 @@ import {
   PartnershipStatusEnum
 } from '../types/partnership';
 
-export function PartnershipRequestsView(): React.JSX.Element {
+/**
+ * Professional Partnership Requests Management Component with API Integration
+ */
+export function PartnershipRequestsViewWithApi(): React.JSX.Element {
   const { addNotification } = useNotifications();
   
-  // State Management
-  const [requests, setRequests] = useState<PartnershipRequest[]>([]);
+  // Get user context (this would come from your auth system)
+  const currentUser = {
+    id: 'current-user-id', // Replace with actual user ID
+    role: 'admin' // Replace with actual user role
+  };
+  
+  // Use the Partnership API hook
+  const {
+    loading,
+    error: apiError,
+    requests,
+    statistics,
+    loadRequests,
+    approveRequest,
+    rejectRequest,
+    cancelRequest,
+    clearError,
+    refresh
+  } = usePartnershipApi();
+  
+  // Local UI State
   const [filteredRequests, setFilteredRequests] = useState<PartnershipRequest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
-  const [refreshing, setRefreshing] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<PartnershipRequest | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
@@ -43,10 +65,6 @@ export function PartnershipRequestsView(): React.JSX.Element {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('date');
   
-  // Statistics
-  const statistics = useMemo<PartnershipStatistics>(() => 
-    getRequestCounts(requests), [requests]);
-
   // Debounced search
   const debouncedSearch = useMemo(() => 
     createSearchDebouncer((term: string) => setSearchTerm(term)), []);
@@ -58,77 +76,33 @@ export function PartnershipRequestsView(): React.JSX.Element {
     setFilteredRequests(filtered);
   }, [requests, statusFilter, searchTerm, sortBy]);
 
-
-
-  // Data Loading and Error Handling
-  const loadRequests = useCallback(async (): Promise<void> => {
-    try {
-      setError('');
-      const response = await partnershipService.getPartnershipRequests();
-      const requestsArray = response.data || [];
-      setRequests(requestsArray);
-      
-      if (requestsArray.length === 0) {
-        console.info('No partnership requests found');
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : ERROR_MESSAGES.LOAD_FAILED;
-      setError(errorMessage);
-      console.error('Failed to load partnership requests:', err);
-      
-      toast.error('Failed to Load Data', {
-        description: errorMessage,
-        action: {
-          label: 'Retry',
-          onClick: () => loadRequests()
-        }
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const handleRefresh = useCallback(async (): Promise<void> => {
-    setRefreshing(true);
-    await loadRequests();
-    setRefreshing(false);
-    toast.success('Data refreshed successfully');
-  }, [loadRequests]);
-
-  // Initial data load
+  // Load requests on component mount
   useEffect(() => {
-    loadRequests();
-  }, [loadRequests]);
+    if (currentUser.role === 'admin') {
+      loadRequests();
+    }
+  }, [loadRequests, currentUser.role]);
 
-  // Action Handlers with Professional Error Handling
+  // Enhanced Action Handlers with API Integration
   const handleApprove = useCallback(async (request: PartnershipRequest): Promise<void> => {
     try {
-      const response = await partnershipService.updatePartnershipRequestStatus(
-        request.id, 
-        'approved',
-        ADMIN_CONFIG.DEFAULT_ADMIN_NAME
-      );
-      const updatedRequest = response.data;
-      
-      // Update local state
-      setRequests(prevRequests => 
-        prevRequests.map(req => req.id === request.id ? updatedRequest : req)
-      );
+      await approveRequest(request.id, ADMIN_CONFIG.DEFAULT_REVIEWER);
 
       // Send success notification
       addNotification({
         type: 'system',
-        title: 'Partnership Approved',
-        message: `${request.userName}'s partnership application has been approved. They can now access referral tools.`,
+        title: 'Partnership Application Approved! 🎉',
+        message: `${request.userName} from ${request.school} is now a TheGradHelper partner.`,
         userId: request.userId,
-        userRole: 'admin',
-        data: {
+        userRole: 'student',
+        data: { 
+          type: NotificationTypeEnum.PARTNERSHIP_APPROVED,
           school: request.school,
           referralCode: request.referralCode
         }
       });
 
-      toast.success(SUCCESS_MESSAGES.REQUEST_APPROVED, {
+      toast.success(SUCCESS_MESSAGES.APPLICATION_APPROVED, {
         description: `${request.userName} from ${request.school} is now a TheGradHelper partner.`,
         duration: 5000
       });
@@ -138,7 +112,7 @@ export function PartnershipRequestsView(): React.JSX.Element {
       setSelectedRequest(null);
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : ERROR_MESSAGES.ACTION_FAILED;
+      const errorMessage = err instanceof Error ? err.message : ERROR_MESSAGES.DATA_LOAD_FAILED;
       console.error('Failed to approve partnership request:', err);
       
       toast.error('Approval Failed', {
@@ -149,7 +123,7 @@ export function PartnershipRequestsView(): React.JSX.Element {
         }
       });
     }
-  }, [addNotification]);
+  }, [approveRequest, addNotification]);
 
   const handleReject = useCallback(async (
     request: PartnershipRequest, 
@@ -163,32 +137,22 @@ export function PartnershipRequestsView(): React.JSX.Element {
     }
 
     try {
-      const response = await partnershipService.updatePartnershipRequestStatus(
-        request.id,
-        'rejected',
-        ADMIN_CONFIG.DEFAULT_ADMIN_NAME,
-        rejectionReason.trim()
-      );
-      const updatedRequest = response.data;
+      await rejectRequest(request.id, rejectionReason.trim(), ADMIN_CONFIG.DEFAULT_REVIEWER);
 
-      // Update local state
-      setRequests(prevRequests => 
-        prevRequests.map(req => req.id === request.id ? updatedRequest : req)
-      );
-
-      // Send rejection notification
+      // Send notification
       addNotification({
-        type: 'info',
-        title: 'Partnership Rejected',
-        message: `${request.userName}'s partnership application has been rejected.`,
+        type: 'system',
+        title: 'Partnership Application Update',
+        message: `Your partnership application for ${request.school} has been reviewed. Please check your partnership page for details.`,
         userId: request.userId,
-        userRole: 'admin',
-        data: {
+        userRole: 'student',
+        data: { 
+          type: NotificationTypeEnum.PARTNERSHIP_REJECTED,
           reason: rejectionReason.trim()
         }
       });
 
-      toast.success(SUCCESS_MESSAGES.REQUEST_REJECTED, {
+      toast.success(SUCCESS_MESSAGES.APPLICATION_REJECTED, {
         description: `${request.userName}'s application has been rejected with feedback.`,
         duration: 4000
       });
@@ -200,7 +164,7 @@ export function PartnershipRequestsView(): React.JSX.Element {
       setRequestToReject(null);
 
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : ERROR_MESSAGES.ACTION_FAILED;
+      const errorMessage = err instanceof Error ? err.message : ERROR_MESSAGES.DATA_LOAD_FAILED;
       console.error('Failed to reject partnership request:', err);
       
       toast.error('Rejection Failed', {
@@ -211,9 +175,36 @@ export function PartnershipRequestsView(): React.JSX.Element {
         }
       });
     }
-  }, [addNotification]);
+  }, [rejectRequest, addNotification]);
 
-  // Modal and UI Event Handlers
+  const handleCancel = useCallback(async (request: PartnershipRequest): Promise<void> => {
+    try {
+      await cancelRequest(request.id);
+      
+      toast.success('Request Cancelled', {
+        description: 'Partnership request has been cancelled successfully.'
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to cancel request';
+      toast.error('Cancellation Failed', {
+        description: errorMessage
+      });
+    }
+  }, [cancelRequest]);
+
+  const handleRefresh = useCallback(async (): Promise<void> => {
+    try {
+      await refresh();
+      toast.success('Data refreshed successfully');
+    } catch (err) {
+      toast.error('Refresh failed', {
+        description: 'Unable to refresh data. Please try again.'
+      });
+    }
+  }, [refresh]);
+
+  // Modal Handlers
   const handleViewDetails = useCallback((request: PartnershipRequest): void => {
     setSelectedRequest(request);
     setIsDetailModalOpen(true);
@@ -221,47 +212,24 @@ export function PartnershipRequestsView(): React.JSX.Element {
 
   const handleRejectClick = useCallback((request: PartnershipRequest): void => {
     setRequestToReject(request);
-    setSelectedRequest(request);
     setIsRejectModalOpen(true);
   }, []);
 
-  const handleCloseDetailModal = useCallback((): void => {
-    setIsDetailModalOpen(false);
-    setSelectedRequest(null);
-  }, []);
-
-  const handleCloseRejectModal = useCallback((): void => {
-    setIsRejectModalOpen(false);
-    setRequestToReject(null);
-    setSelectedRequest(null);
-  }, []);
-
-  // Filter handlers
-  const handleFilterChange = useCallback((newFilter: FilterType): void => {
-    setStatusFilter(newFilter);
-  }, []);
-
-  const handleSearchChange = useCallback((searchValue: string): void => {
-    debouncedSearch(searchValue);
-  }, [debouncedSearch]);
-
-  const handleSortChange = useCallback((newSort: 'date' | 'name' | 'status'): void => {
-    setSortBy(newSort);
-  }, []);
-
-  // Accessibility helpers
-  const handleKeyboardNavigation = useCallback((
-    event: React.KeyboardEvent,
-    action: () => void
-  ): void => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      action();
+  // Error handling for API errors
+  useEffect(() => {
+    if (apiError) {
+      toast.error('API Error', {
+        description: apiError,
+        action: {
+          label: 'Dismiss',
+          onClick: clearError
+        }
+      });
     }
-  }, []);
+  }, [apiError, clearError]);
 
   // Loading state
-  if (loading) {
+  if (loading && requests.length === 0) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse">
@@ -293,63 +261,65 @@ export function PartnershipRequestsView(): React.JSX.Element {
           {/* Refresh Button */}
           <button
             onClick={handleRefresh}
-            disabled={refreshing}
+            disabled={loading}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
             aria-label="Refresh partnership requests"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
 
           {/* Statistics Summary */}
-          <div className="stats-summary bg-white border rounded-lg p-4 shadow-sm">
-            <div className="flex gap-6">
-              <div className="stat-item text-center">
-                <div className="flex items-center gap-1 text-yellow-600 font-semibold">
-                  <Users className="w-4 h-4" />
-                  <span className="text-xl">{statistics.pending}</span>
+          {statistics && (
+            <div className="stats-summary bg-white border rounded-lg p-4 shadow-sm">
+              <div className="flex gap-6">
+                <div className="stat-item text-center">
+                  <div className="flex items-center gap-1 text-yellow-600 font-semibold">
+                    <Users className="w-4 h-4" />
+                    <span className="text-xl">{statistics.pending}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 uppercase tracking-wide">Pending</span>
                 </div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Pending</span>
-              </div>
-              <div className="stat-item text-center">
-                <div className="flex items-center gap-1 text-green-600 font-semibold">
-                  <UserCheck className="w-4 h-4" />
-                  <span className="text-xl">{statistics.approved}</span>
+                <div className="stat-item text-center">
+                  <div className="flex items-center gap-1 text-green-600 font-semibold">
+                    <UserCheck className="w-4 h-4" />
+                    <span className="text-xl">{statistics.approved}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 uppercase tracking-wide">Approved</span>
                 </div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Approved</span>
-              </div>
-              <div className="stat-item text-center">
-                <div className="flex items-center gap-1 text-red-600 font-semibold">
-                  <AlertCircle className="w-4 h-4" />
-                  <span className="text-xl">{statistics.rejected}</span>
+                <div className="stat-item text-center">
+                  <div className="flex items-center gap-1 text-red-600 font-semibold">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-xl">{statistics.rejected}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 uppercase tracking-wide">Rejected</span>
                 </div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Rejected</span>
-              </div>
-              <div className="stat-item text-center">
-                <div className="flex items-center gap-1 text-blue-600 font-semibold">
-                  <TrendingUp className="w-4 h-4" />
-                  <span className="text-xl">{statistics.total}</span>
+                <div className="stat-item text-center">
+                  <div className="flex items-center gap-1 text-blue-600 font-semibold">
+                    <TrendingUp className="w-4 h-4" />
+                    <span className="text-xl">{statistics.total}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 uppercase tracking-wide">Total</span>
                 </div>
-                <span className="text-xs text-gray-500 uppercase tracking-wide">Total</span>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Error Display */}
-      {error && (
+      {/* API Error Display */}
+      {apiError && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4">
           <div className="flex items-center gap-2 text-red-800">
             <AlertCircle className="w-5 h-5" />
-            <span className="font-medium">Error Loading Data</span>
+            <span className="font-medium">API Error</span>
           </div>
-          <p className="text-red-600 mt-1 text-sm">{error}</p>
+          <p className="text-red-600 mt-1 text-sm">{apiError}</p>
           <button
-            onClick={handleRefresh}
+            onClick={clearError}
             className="mt-3 px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded text-sm transition-colors"
           >
-            Try Again
+            Dismiss
           </button>
         </div>
       )}
@@ -360,7 +330,7 @@ export function PartnershipRequestsView(): React.JSX.Element {
         setFilter={setStatusFilter}
         searchTerm={searchTerm}
         setSearchTerm={(term) => debouncedSearch(term)}
-        statistics={statistics}
+        statistics={statistics || { total: 0, pending: 0, approved: 0, rejected: 0 }}
       />
 
       {/* Requests List */}
@@ -448,7 +418,12 @@ export function PartnershipRequestsView(): React.JSX.Element {
             setIsRejectModalOpen(false);
             setRequestToReject(null);
           }}
-          onConfirm={() => handleReject(requestToReject, 'Rejected by admin')}
+          onConfirm={() => {
+            // This would be handled by the modal's internal state
+            // The modal should call handleReject with the reason
+            return Promise.resolve();
+          }}
+          isLoading={loading}
         />
       )}
     </div>
