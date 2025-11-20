@@ -324,7 +324,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
       const token = localStorage.getItem('gradhelper_token');
       const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
-      // Check if this is a deliverable file with R2 URL that needs authentication
+      // Check if this is a task attachment with R2 URL that needs authentication
       if (file.url && file.url.includes('cloudflarestorage.com')) {
         // This is an R2 file that needs a signed URL
         try {
@@ -343,14 +343,14 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
           
           if (file.id && parentDeliverable) {
             // Use deliverable file endpoint
-            const deliverableFileUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=download`;
+            const deliverableFileUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=preview`;
             signedUrlResponse = await fetch(deliverableFileUrl, {
               headers: {
                 ...(token && { 'Authorization': `Bearer ${token}` }),
               },
             });
           } else if (file.id) {
-            // Fallback to generic endpoints if deliverable context is not available
+            // Fallback to generic endpoints if task context is not available
             signedUrlResponse = await fetch(`${API_BASE_URL}/files/${file.id}/url/`, {
               headers: {
                 ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -362,7 +362,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
           if (signedUrlResponse && signedUrlResponse.ok) {
             const data = await signedUrlResponse.json();
             console.log('Signed URL response data:', data);
-            signedUrl = data.download_url || data.url || data.downloadUrl || data.previewUrl || data.signed_url;
+            signedUrl = data.preview_url || data.url || data.downloadUrl || data.previewUrl || data.signed_url;
           }
           
           // If we got a signed URL, use it with proper handling
@@ -428,217 +428,239 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
                               .pdf-viewer {
                                 flex: 1;
                                 border: none;
-                            width: 100%;
-                          }
-                          .loading {
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            height: 100vh;
-                            color: white;
-                          }
-                        </style>
-                      </head>
-                      <body>
-                        <div class="pdf-container">
-                          <div class="pdf-header">
-                            📄 ${fileName}
-                          </div>
-                          <embed 
-                            class="pdf-viewer" 
-                            src="${blobUrl}" 
-                            type="application/pdf"
-                            width="100%"
-                            height="100%"
-                          />
-                        </div>
-                        <script>
-                          // Fallback if embed doesn't work
-                          setTimeout(() => {
-                            const embed = document.querySelector('embed');
-                            if (embed && !embed.offsetHeight) {
-                              document.body.innerHTML = \`
-                                <div class="loading">
-                                  <div>
-                                    <h3>PDF Viewer</h3>
-                                    <p>Click <a href="${blobUrl}" download="${fileName}" style="color: #4CAF50;">here</a> to download the PDF file.</p>
-                                    <p>Or <a href="${blobUrl}" target="_blank" style="color: #4CAF50;">open in new tab</a>.</p>
-                                  </div>
-                                </div>
-                              \`;
-                            }
-                          }, 2000);
-                          
-                          // Clean up blob URL when window closes
-                          window.addEventListener('beforeunload', () => {
-                            URL.revokeObjectURL('${blobUrl}');
-                          });
-                        </script>
-                      </body>
-                    </html>
-                  `);
-                  newWindow.document.close();
-                  
-                  // Clean up after delay as backup
-                  setTimeout(() => URL.revokeObjectURL(blobUrl), 300000); // 5 minutes
+                                width: 100%;
+                              }
+                              .loading {
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                height: 100vh;
+                                color: white;
+                              }
+                            </style>
+                          </head>
+                          <body>
+                            <div class="pdf-container">
+                              <div class="pdf-header">
+                                📄 ${fileName}
+                              </div>
+                              <embed 
+                                class="pdf-viewer" 
+                                src="${blobUrl}" 
+                                type="application/pdf"
+                                width="100%"
+                                height="100%"
+                              />
+                            </div>
+                            <script>
+                              // Fallback if embed doesn't work
+                              setTimeout(() => {
+                                const embed = document.querySelector('embed');
+                                if (embed && !embed.offsetHeight) {
+                                  document.body.innerHTML = \`
+                                    <div class="loading">
+                                      <div>
+                                        <h3>PDF Viewer</h3>
+                                        <p>Click <a href="${blobUrl}" download="${fileName}" style="color: #4CAF50;">here</a> to download the PDF file.</p>
+                                        <p>Or <a href="${blobUrl}" target="_blank" style="color: #4CAF50;">open in new tab</a>.</p>
+                                      </div>
+                                    </div>
+                                  \`;
+                                }
+                              }, 2000);
+                              
+                              // Clean up blob URL when window closes
+                              window.addEventListener('beforeunload', () => {
+                                URL.revokeObjectURL('${blobUrl}');
+                              });
+                            </script>
+                          </body>
+                        </html>
+                      `);
+                      newWindow.document.close();
+                      
+                      // Clean up after delay as backup
+                      setTimeout(() => URL.revokeObjectURL(blobUrl), 300000); // 5 minutes
+                    } else {
+                      // If popup blocked, create download link
+                      const link = document.createElement('a');
+                      link.href = blobUrl;
+                      link.download = fileName;
+                      link.click();
+                      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                    }
+                  })
+                  .catch(() => {
+                    // If proxy fails, try direct signed URL
+                    if (signedUrl) {
+                      window.open(signedUrl, '_blank', 'noopener,noreferrer');
+                    } else {
+                      toast.error('Unable to preview PDF: No valid URL available');
+                    }
+                  });
                 } else {
-                  // If popup blocked, create download link
-                  const link = document.createElement('a');
-                  link.href = blobUrl;
-                  link.download = fileName;
-                  link.click();
-                  setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                  // No proxy available, use direct signed URL
+                  if (signedUrl) {
+                    window.open(signedUrl, '_blank', 'noopener,noreferrer');
+                  } else {
+                    toast.error('Unable to preview PDF: No valid URL available');
+                  }
                 }
-              })
-              .catch(() => {
-                // If proxy fails, try direct signed URL
-                if (signedUrl) {
-                  window.open(signedUrl, '_blank', 'noopener,noreferrer');
-                } else {
-                  toast.error('Unable to preview PDF: No valid URL available');
-                }
+                
+                toast.success(`Opening ${fileName} with PDF viewer...`, {
+                  description: context ? `From: ${context}` : 'PDF file opened in browser',
+                });
+              } catch (error) {
+                // Final fallback: Direct URL
+                window.open(signedUrl, '_blank', 'noopener,noreferrer');
+                toast.info(`Opening ${fileName}...`, {
+                  description: 'PDF opened directly - may download if viewer fails',
+                });
+              }
+            } else if (extension && ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(extension)) {
+              // Direct browser preview for images
+              window.open(signedUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} in browser...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} image preview`,
+              });
+            } else if (extension && ['txt', 'md', 'html', 'htm', 'xml', 'json', 'csv'].includes(extension)) {
+              // Direct browser preview for text files
+              window.open(signedUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} in browser...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} file preview`,
+              });
+            } else if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) {
+              // For Office docs, use Google Docs Viewer
+              const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`;
+              window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} with document viewer...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} file via Google Docs Viewer`,
+              });
+            } else if (extension && ['mp4', 'webm', 'ogg', 'mov'].includes(extension)) {
+              // Direct browser preview for videos
+              window.open(signedUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} in browser...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} video preview`,
               });
             } else {
-              // No proxy available, use direct signed URL
-              if (signedUrl) {
-                window.open(signedUrl, '_blank', 'noopener,noreferrer');
-              } else {
-                toast.error('Unable to preview PDF: No valid URL available');
-              }
-            }
-            
-            toast.success(`Opening ${fileName} with PDF viewer...`, {
-              description: context ? `From: ${context}` : 'PDF file opened in browser',
-            });
-          } catch (error) {
-            // Final fallback: Direct URL
-            if (signedUrl) {
+              // For other files, try direct open (will likely download)
               window.open(signedUrl, '_blank', 'noopener,noreferrer');
               toast.info(`Opening ${fileName}...`, {
-                description: 'PDF opened directly - may download if viewer fails',
+                description: 'File will download if browser preview is not supported',
               });
             }
+            return;
           }
-        } else if (extension && ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp'].includes(extension)) {
-          // Direct browser preview for images
-          window.open(signedUrl, '_blank', 'noopener,noreferrer');
-          toast.success(`Opening ${fileName} in browser...`, {
-            description: context ? `From: ${context}` : `${extension.toUpperCase()} image preview`,
-          });
-        } else if (extension && ['txt', 'md', 'html', 'htm', 'xml', 'json', 'csv'].includes(extension)) {
-          // Direct browser preview for text files
-          window.open(signedUrl, '_blank', 'noopener,noreferrer');
-          toast.success(`Opening ${fileName} in browser...`, {
-            description: context ? `From: ${context}` : `${extension.toUpperCase()} file preview`,
-          });
-        } else if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) {
-          // For Office docs, use Google Docs Viewer
-          const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(signedUrl)}&embedded=true`;
-          window.open(viewerUrl, '_blank', 'noopener,noreferrer');
-          toast.success(`Opening ${fileName} with document viewer...`, {
-            description: context ? `From: ${context}` : `${extension.toUpperCase()} file via Google Docs Viewer`,
-          });
-        } else if (extension && ['mp4', 'webm', 'ogg', 'mov'].includes(extension)) {
-          // Direct browser preview for videos
-          window.open(signedUrl, '_blank', 'noopener,noreferrer');
-          toast.success(`Opening ${fileName} in browser...`, {
-            description: context ? `From: ${context}` : `${extension.toUpperCase()} video preview`,
-          });
-        } else {
-          // For other files, try direct open (will likely download)
-          window.open(signedUrl, '_blank', 'noopener,noreferrer');
-          toast.info(`Opening ${fileName}...`, {
-            description: 'File will download if browser preview is not supported',
-          });
+          
+          // If signed URL failed, try API proxy endpoint with deliverable context
+          if (file.id && parentDeliverable) {
+            const proxyUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=preview`;
+            
+            if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) {
+              // For Office docs via proxy, use Google Docs Viewer
+              const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(proxyUrl)}&embedded=true`;
+              window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} with document viewer...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} deliverable file via proxy + viewer`,
+              });
+            } else {
+              window.open(proxyUrl, '_blank', 'noopener,noreferrer');
+              toast.info(`Opening ${fileName} via API proxy...`, {
+                description: context ? `From: ${context}` : 'Using authenticated deliverable proxy',
+              });
+            }
+            return;
+          } else if (file.id) {
+            // Generic fallback proxy
+            const proxyUrl = `${API_BASE_URL}/files/proxy/${file.id}/?filename=${encodeURIComponent(fileName)}`;
+            
+            if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) {
+              const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(proxyUrl)}&embedded=true`;
+              window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+              toast.success(`Opening ${fileName} with document viewer...`, {
+                description: context ? `From: ${context}` : `${extension.toUpperCase()} file via fallback proxy + viewer`,
+              });
+            } else {
+              window.open(proxyUrl, '_blank', 'noopener,noreferrer');
+              toast.info(`Opening ${fileName} via fallback proxy...`, {
+                description: context ? `From: ${context}` : 'Using generic authenticated proxy',
+              });
+            }
+            return;
+          }
+          
+        } catch (apiError) {
+          console.warn('Error getting signed URL, trying direct access:', apiError);
         }
-        return;
       }
       
-      // If signed URL failed, try API proxy endpoint with deliverable context
-      if (file.id && parentDeliverable) {
-        const proxyUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=preview`;
-        
-        if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) {
-          // For Office docs via proxy, use Google Docs Viewer
-          const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(proxyUrl)}&embedded=true`;
-          window.open(viewerUrl, '_blank', 'noopener,noreferrer');
-          toast.success(`Opening ${fileName} with document viewer...`, {
-            description: context ? `From: ${context}` : `${extension.toUpperCase()} deliverable file via proxy + viewer`,
-          });
-        } else {
-          window.open(proxyUrl, '_blank', 'noopener,noreferrer');
-          toast.info(`Opening ${fileName} via API proxy...`, {
-            description: context ? `From: ${context}` : 'Using authenticated deliverable proxy',
-          });
+      // For non-R2 URLs or fallback, handle based on file structure
+      if (file.id && !file.url) {
+        // File has ID but no direct URL - use API endpoints
+        try {
+          const previewUrl = `${API_BASE_URL}/files/preview/${file.id}`;
+          
+          if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) {
+            // For Office docs, use Google Docs Viewer with API endpoint
+            const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(previewUrl)}&embedded=true`;
+            window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+            toast.success(`Opening ${fileName} with document viewer...`, {
+              description: context ? `From: ${context}` : `${extension.toUpperCase()} file via API + viewer`,
+            });
+          } else {
+            window.open(previewUrl, '_blank', 'noopener,noreferrer');
+            toast.info(`Opening ${fileName} via API...`, {
+              description: context ? `From: ${context}` : 'Using API preview endpoint',
+            });
+          }
+          return;
+        } catch (apiError) {
+          console.warn('Error with API preview:', apiError);
         }
-        return;
-      } else if (file.id) {
-        // Generic fallback proxy
-        const proxyUrl = `${API_BASE_URL}/files/proxy/${file.id}/?filename=${encodeURIComponent(fileName)}`;
-        
-        if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) {
-          const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(proxyUrl)}&embedded=true`;
-          window.open(viewerUrl, '_blank', 'noopener,noreferrer');
-          toast.success(`Opening ${fileName} with document viewer...`, {
-            description: context ? `From: ${context}` : `${extension.toUpperCase()} file via fallback proxy + viewer`,
-          });
-        } else {
-          window.open(proxyUrl, '_blank', 'noopener,noreferrer');
-          toast.info(`Opening ${fileName} via fallback proxy...`, {
-            description: context ? `From: ${context}` : 'Using generic authenticated proxy',
-          });
-        }
-        return;
       }
       
-    } catch (apiError) {
-      console.warn('Error getting signed URL, trying direct access:', apiError);
-    }
-  }
-  
-  // If URL doesn't contain R2 domain or isn't an authenticated file, try direct access
-  if (file.url) {
-    if (extension && browserPreviewableTypes.includes(extension)) {
-      window.open(file.url, '_blank', 'noopener,noreferrer');
-      toast.success(`Opening ${fileName} in browser...`, {
-        description: context ? `From: ${context}` : `Direct ${extension?.toUpperCase()} preview`,
+      // Direct URL fallback (may fail for authenticated R2 URLs)
+      if (file.url && file.url.startsWith('http')) {
+        if (extension && ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(extension)) {
+          // Try Google Docs Viewer for Office docs with direct URL
+          const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(file.url)}&embedded=true`;
+          window.open(viewerUrl, '_blank', 'noopener,noreferrer');
+          toast.warning(`Attempting to open ${fileName}...`, {
+            description: 'Using direct URL with document viewer - may fail if authentication required',
+          });
+        } else {
+          window.open(file.url, '_blank', 'noopener,noreferrer');
+          toast.warning(`Opening ${fileName} directly...`, {
+            description: 'Using direct URL - may fail if authentication required',
+          });
+        }
+      } else {
+        // No valid preview method available - fallback to download
+        toast.warning('Preview not available', {
+          description: 'File will be downloaded instead',
+        });
+        await handleDownloadFile(file, context);
+      }
+    } catch (error) {
+      console.error('Error previewing file:', error);
+      toast.error('Failed to open file', {
+        description: 'Please try downloading the file instead. Click download button to save the file.',
       });
-    } else {
-      window.open(file.url, '_blank', 'noopener,noreferrer');
-      toast.info(`Opening ${fileName}...`, {
-        description: 'File opened directly',
-      });
     }
-    return;
-  }
-  
-  // Final fallback - no URL available
-  toast.error('Unable to preview file', {
-    description: 'No valid file URL or preview method available',
-  });
-  
-} catch (error) {
-  console.error('Error previewing file:', error);
-  toast.error('Preview failed', {
-    description: 'Unable to preview file. Please try downloading instead.',
-  });
-}
-};
+  };
 
-  // Enhanced file download handler - creates proper download with auth (same structure as TaskManagement)
+  // Enhanced file download handler - uses backend proxy to avoid CORS (same as TaskManagement)
   const handleDownloadFile = async (file: any, context?: string) => {
     try {
-      const fileName = file.name || '';
+      const fileName = file.name || 'download';
       const token = localStorage.getItem('gradhelper_token');
       const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
-      // Check if this is a deliverable file with R2 URL that needs authentication
-      if (file.url && file.url.includes('cloudflarestorage.com')) {
-        // This is an R2 file that needs a signed URL
+      // Always use backend proxy for downloads to avoid CORS and ensure proper file handling
+      if (file.url && file.url.includes('cloudflarestorage.com') && file.id) {
+        // Use backend proxy to download file as blob (avoids CORS and corruption)
         try {
-          let signedUrlResponse;
-          
-          // For deliverable files, find the parent deliverable
+          // Find deliverable context for proper API endpoint
           let parentDeliverable = null;
           
           // Find which deliverable this file belongs to
@@ -647,111 +669,161 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
               parentDeliverable = deliverable;
               break;
             }
-          }
-          
-          if (file.id && parentDeliverable) {
-            // Use deliverable file endpoint
-            const deliverableFileUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=download`;
-            signedUrlResponse = await fetch(deliverableFileUrl, {
-              headers: {
-                ...(token && { 'Authorization': `Bearer ${token}` }),
-              },
-            });
+          }          let downloadUrl = '';
+          if (parentDeliverable) {
+            downloadUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=download`;
           } else if (file.id) {
-            // Fallback to generic endpoints if deliverable context is not available
-            signedUrlResponse = await fetch(`${API_BASE_URL}/files/${file.id}/url/`, {
-              headers: {
-                ...(token && { 'Authorization': `Bearer ${token}` }),
-              },
-            });
+            downloadUrl = `${API_BASE_URL}/files/${file.id}/download/`;
           }
 
-          let signedUrl: string | null = null;
-          if (signedUrlResponse && signedUrlResponse.ok) {
-            const data = await signedUrlResponse.json();
-            signedUrl = data.download_url || data.url || data.downloadUrl || data.previewUrl || data.signed_url;
-          }
-          
-          if (signedUrl) {
-            // Create a temporary link and trigger download
-            const link = document.createElement('a');
-            link.href = signedUrl;
-            link.download = fileName;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            toast.success(`Downloading ${fileName}...`, {
-              description: context ? `From: ${context}` : 'Download started',
+          if (downloadUrl) {
+            // Fetch file as blob through backend proxy
+            const response = await fetch(downloadUrl, {
+              method: 'GET',
+              headers: {
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+              },
             });
-            return;
-          }
-          
-          // If signed URL failed, try API proxy endpoint
-          if (file.id && parentDeliverable) {
-            const proxyUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=download`;
-            
-            const link = document.createElement('a');
-            link.href = proxyUrl;
-            link.download = fileName;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            toast.success(`Downloading ${fileName} via proxy...`, {
-              description: context ? `From: ${context}` : 'Using authenticated deliverable proxy',
-            });
-            return;
-          } else if (file.id) {
-            // Generic fallback proxy
-            const proxyUrl = `${API_BASE_URL}/files/proxy/${file.id}/?filename=${encodeURIComponent(fileName)}&action=download`;
-            
-            const link = document.createElement('a');
-            link.href = proxyUrl;
-            link.download = fileName;
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            toast.success(`Downloading ${fileName} via fallback proxy...`, {
-              description: context ? `From: ${context}` : 'Using generic authenticated proxy',
-            });
-            return;
+
+            if (response.ok) {
+              // Check if response is actually a file (not HTML error page)
+              const contentType = response.headers.get('content-type');
+              const contentDisposition = response.headers.get('content-disposition');
+              
+              console.log('Download response headers:', {
+                'content-type': contentType,
+                'content-disposition': contentDisposition,
+                'content-length': response.headers.get('content-length'),
+                fileName: fileName
+              });
+              
+              if (contentType && !contentType.includes('text/html')) {
+                // It's a file, not an HTML error page
+                const blob = await response.blob();
+                
+                // For PDFs, ensure proper MIME type
+                const fileExtension = fileName.split('.').pop()?.toLowerCase();
+                let finalBlob = blob;
+                
+                if (fileExtension === 'pdf') {
+                  console.log('Original blob type:', blob.type, blob.size);
+                  // Ensure PDF has correct MIME type for proper handling
+                  finalBlob = new Blob([blob], { type: 'application/pdf' });
+                  console.log('Created PDF blob with proper MIME type:', finalBlob.type, finalBlob.size);
+                } else if (fileExtension === 'docx') {
+                  // Ensure DOCX has correct MIME type
+                  finalBlob = new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                } else if (contentType) {
+                  // Use the content-type from response for other files
+                  finalBlob = new Blob([blob], { type: contentType });
+                }
+                
+                const url = window.URL.createObjectURL(finalBlob);
+                
+                // Extract filename from content-disposition header if available
+                let downloadFileName = fileName;
+                if (contentDisposition) {
+                  const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                  if (fileNameMatch) {
+                    downloadFileName = fileNameMatch[1].replace(/['"]/g, '') || fileName;
+                  }
+                }
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = downloadFileName;
+                
+                // For PDFs, add additional attributes to force download
+                if (fileExtension === 'pdf') {
+                  link.setAttribute('type', 'application/pdf');
+                  link.setAttribute('target', '_blank');
+                }
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up the blob URL
+                setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+                
+                toast.success(`Downloaded ${downloadFileName}`, {
+                  description: context ? `From: ${context}` : `${fileExtension?.toUpperCase()} file, Size: ${Math.round(finalBlob.size / 1024)} KB`,
+                });
+                return;
+              } else {
+                // Backend returned HTML (likely error page), try alternative approach
+                console.warn('Backend returned HTML instead of file, trying direct link approach');
+                console.log('Response content-type was:', contentType);
+                throw new Error('Backend returned HTML instead of file');
+              }
+            } else {
+              console.warn('Download request failed:', response.status, response.statusText);
+              const errorText = await response.text();
+              console.log('Error response body:', errorText.substring(0, 200));
+              throw new Error(`Download failed: ${response.status}`);
+            }
           }
           
         } catch (apiError) {
-          console.warn('Error getting download URL, trying direct access:', apiError);
+          console.warn('Error with backend proxy, trying fallback methods:', apiError);
         }
       }
       
-      // If URL doesn't contain R2 domain or isn't an authenticated file, try direct download
-      if (file.url) {
-        const link = document.createElement('a');
-        link.href = file.url;
-        link.download = fileName;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast.success(`Downloading ${fileName}...`, {
-          description: context ? `From: ${context}` : 'Direct download',
-        });
-        return;
+      // Fallback methods for non-R2 files or when backend proxy fails
+      if (file.id && !file.url) {
+        // File has ID but no direct URL - use API endpoints
+        try {
+          const downloadUrl = `${API_BASE_URL}/files/download/${file.id}/`;
+          
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = fileName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          toast.success(`Downloading ${fileName} via API...`, {
+            description: context ? `From: ${context}` : 'Using API download endpoint',
+          });
+          return;
+        } catch (apiError) {
+          console.warn('Error with API download:', apiError);
+        }
       }
       
-      // Final fallback - no URL available
-      toast.error('Unable to download file', {
-        description: 'No valid download URL available',
-      });
-      
+      // Direct URL fallback (may fail for authenticated R2 URLs)
+      if (file.url && file.url.startsWith('http')) {
+        try {
+          // For direct URLs, try to add download parameters
+          let downloadUrl = file.url;
+          if (!downloadUrl.includes('response-content-disposition')) {
+            const separator = downloadUrl.includes('?') ? '&' : '?';
+            downloadUrl = `${downloadUrl}${separator}response-content-disposition=attachment`;
+          }
+          
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = fileName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          toast.warning(`Downloading ${fileName} directly...`, {
+            description: 'Using direct URL - may fail if authentication required',
+          });
+        } catch (directError) {
+          console.warn('Error with direct download:', directError);
+          throw new Error('No valid download method available');
+        }
+      } else {
+        throw new Error('No valid download method available');
+      }
     } catch (error) {
       console.error('Error downloading file:', error);
-      toast.error('Download failed', {
-        description: 'Unable to download file. Please try again.',
+      toast.error('Failed to download file', {
+        description: 'Please check your connection and try again, or contact support if the issue persists.',
       });
     }
   };

@@ -564,107 +564,190 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
     }
   };
 
-  // Enhanced file download handler using proper backend API
+  // Enhanced file download handler - uses backend proxy to avoid CORS
   const handleDownloadFile = async (file: DeliverableFile | any, context?: string) => {
     try {
       const fileName = file.name || 'download';
       const token = localStorage.getItem('gradhelper_token');
       const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
-      // Check if this is a task attachment or deliverable file with R2 URL that needs authentication
+      // Always use backend proxy for downloads to avoid CORS and ensure proper file handling
       if (file.url && file.url.includes('cloudflarestorage.com') && file.id) {
-        // First, try to find if it's a task attachment
-        const currentTask = tasks.find(task => 
-          task.attachments && task.attachments.some(att => att.id === file.id)
-        );
+        // Use backend proxy to download file as blob (avoids CORS and corruption)
+        try {
+          // Find task context for proper API endpoint
+          const currentTask = tasks.find(task => 
+            task.attachments && task.attachments.some((att: any) => att.id === file.id)
+          );
 
-        // If not found in task attachments, check deliverable files
-        let parentDeliverable = null;
-        let parentTaskForDeliverable = null;
-        
-        if (!currentTask) {
-          for (const task of tasks) {
-            if (task.deliverables) {
-              for (const deliverable of task.deliverables) {
-                if (deliverable.files && deliverable.files.some((delivFile: any) => delivFile.id === file.id)) {
-                  parentDeliverable = deliverable;
-                  parentTaskForDeliverable = task;
-                  break;
+          let parentDeliverable = null;
+          let parentTaskForDeliverable = null;
+          
+          if (!currentTask) {
+            for (const task of tasks) {
+              if (task.deliverables) {
+                for (const deliverable of task.deliverables) {
+                  if (deliverable.files && deliverable.files.some((delivFile: any) => delivFile.id === file.id)) {
+                    parentDeliverable = deliverable;
+                    parentTaskForDeliverable = task;
+                    break;
+                  }
                 }
+                if (parentDeliverable) break;
               }
-              if (parentDeliverable) break;
             }
           }
-        }
 
-        let response = null;
-
-        if (currentTask) {
-          // Use task attachment endpoint
-          response = await fetch(`${API_BASE_URL}/accounts/tasks/${currentTask.id}/attachments/${file.id}/?action=download`, {
-            headers: {
-              ...(token && { 'Authorization': `Bearer ${token}` }),
-            },
-          });
-        } else if (parentDeliverable && parentTaskForDeliverable) {
-          // Use deliverable file endpoint (direct deliverable access)
-          response = await fetch(`${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=download`, {
-            headers: {
-              ...(token && { 'Authorization': `Bearer ${token}` }),
-            },
-          });
-        }
-
-        if (response && response.ok) {
-          const data = await response.json();
-          const downloadUrl = data.download_url || data.url;
-          
-          if (downloadUrl) {
-            // Create a temporary link to trigger download
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = data.file_name || fileName;
-            link.target = '_blank';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            toast.success(`Downloading ${fileName}...`, {
-              description: context ? `From: ${context}` : `File size: ${data.file_size ? Math.round(data.file_size / 1024) + ' KB' : 'Unknown'}`,
-            });
-            return;
+          let downloadUrl = '';
+          if (currentTask) {
+            downloadUrl = `${API_BASE_URL}/accounts/tasks/${currentTask.id}/attachments/${file.id}/?action=download`;
+          } else if (parentDeliverable && parentTaskForDeliverable) {
+            downloadUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=download`;
+          } else if (file.id) {
+            downloadUrl = `${API_BASE_URL}/files/${file.id}/download/`;
           }
+
+          if (downloadUrl) {
+            // Fetch file as blob through backend proxy
+            const response = await fetch(downloadUrl, {
+              method: 'GET',
+              headers: {
+                ...(token && { 'Authorization': `Bearer ${token}` }),
+              },
+            });
+
+            if (response.ok) {
+              // Check if response is actually a file (not HTML error page)
+              const contentType = response.headers.get('content-type');
+              const contentDisposition = response.headers.get('content-disposition');
+              
+              console.log('Download response headers:', {
+                'content-type': contentType,
+                'content-disposition': contentDisposition,
+                'content-length': response.headers.get('content-length'),
+                fileName: fileName
+              });
+              
+              if (contentType && !contentType.includes('text/html')) {
+                // It's a file, not an HTML error page
+                const blob = await response.blob();
+                
+                // For PDFs, ensure proper MIME type
+                const fileExtension = fileName.split('.').pop()?.toLowerCase();
+                let finalBlob = blob;
+                
+                if (fileExtension === 'pdf') {
+                  console.log('Original blob type:', blob.type, blob.size);
+                  // Ensure PDF has correct MIME type for proper handling
+                  finalBlob = new Blob([blob], { type: 'application/pdf' });
+                  console.log('Created PDF blob with proper MIME type:', finalBlob.type, finalBlob.size);
+                } else if (fileExtension === 'docx') {
+                  // Ensure DOCX has correct MIME type
+                  finalBlob = new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                } else if (contentType) {
+                  // Use the content-type from response for other files
+                  finalBlob = new Blob([blob], { type: contentType });
+                }
+                
+                const url = window.URL.createObjectURL(finalBlob);
+                
+                // Extract filename from content-disposition header if available
+                let downloadFileName = fileName;
+                if (contentDisposition) {
+                  const fileNameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                  if (fileNameMatch) {
+                    downloadFileName = fileNameMatch[1].replace(/['"]/g, '') || fileName;
+                  }
+                }
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = downloadFileName;
+                
+                // For PDFs, add additional attributes to force download
+                if (fileExtension === 'pdf') {
+                  link.setAttribute('type', 'application/pdf');
+                  link.setAttribute('target', '_blank');
+                }
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Clean up the blob URL
+                setTimeout(() => window.URL.revokeObjectURL(url), 1000);
+                
+                toast.success(`Downloaded ${downloadFileName}`, {
+                  description: context ? `From: ${context}` : `${fileExtension?.toUpperCase()} file, Size: ${Math.round(finalBlob.size / 1024)} KB`,
+                });
+                return;
+              } else {
+                // Backend returned HTML (likely error page), try alternative approach
+                console.warn('Backend returned HTML instead of file, trying direct link approach');
+                console.log('Response content-type was:', contentType);
+                throw new Error('Backend returned HTML instead of file');
+              }
+            } else {
+              console.warn('Download request failed:', response.status, response.statusText);
+              const errorText = await response.text();
+              console.log('Error response body:', errorText.substring(0, 200));
+              throw new Error(`Download failed: ${response.status}`);
+            }
+          }
+          
+        } catch (apiError) {
+          console.warn('Error with backend proxy, trying fallback methods:', apiError);
         }
       }
-
-      // Fallback to generic file service or direct URL
+      
+      // Fallback methods for non-R2 files or when backend proxy fails
+      if (file.id && !file.url) {
+        // File has ID but no direct URL - use API endpoints
+        try {
+          const downloadUrl = `${API_BASE_URL}/files/download/${file.id}/`;
+          
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = fileName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          toast.success(`Downloading ${fileName} via API...`, {
+            description: context ? `From: ${context}` : 'Using API download endpoint',
+          });
+          return;
+        } catch (apiError) {
+          console.warn('Error with API download:', apiError);
+        }
+      }
+      
+      // Direct URL fallback (may fail for authenticated R2 URLs)
       if (file.url && file.url.startsWith('http')) {
-        // Try direct download with URL
-        const link = document.createElement('a');
-        link.href = file.url;
-        link.download = fileName;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast.success(`Downloading ${fileName}...`, {
-          description: context ? `From: ${context}` : 'Direct download',
-        });
-      } else if (file.id) {
-        // Use generic API endpoint as fallback
-        const downloadUrl = `${API_BASE_URL}/files/${file.id}/download/`;
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        link.download = fileName;
-        link.target = '_blank';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast.success(`Downloading ${fileName}...`, {
-          description: context ? `From: ${context}` : 'API download',
-        });
+        try {
+          // For direct URLs, try to add download parameters
+          let downloadUrl = file.url;
+          if (!downloadUrl.includes('response-content-disposition')) {
+            const separator = downloadUrl.includes('?') ? '&' : '?';
+            downloadUrl = `${downloadUrl}${separator}response-content-disposition=attachment`;
+          }
+          
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = fileName;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          toast.warning(`Downloading ${fileName} directly...`, {
+            description: 'Using direct URL - may fail if authentication required',
+          });
+        } catch (directError) {
+          console.warn('Error with direct download:', directError);
+          throw new Error('No valid download method available');
+        }
       } else {
         throw new Error('No valid download method available');
       }
@@ -816,7 +899,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
           
           if (file.id && currentTask) {
             // Use task attachment endpoint
-            const taskAttachmentUrl = `${API_BASE_URL}/accounts/tasks/${currentTask.id}/attachments/${file.id}/?action=download`;
+            const taskAttachmentUrl = `${API_BASE_URL}/accounts/tasks/${currentTask.id}/attachments/${file.id}/?action=preview`;
             signedUrlResponse = await fetch(taskAttachmentUrl, {
               headers: {
                 ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -824,7 +907,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
             });
           } else if (file.id && parentDeliverable && parentTaskForDeliverable) {
             // Use deliverable file endpoint
-            const deliverableFileUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=download`;
+            const deliverableFileUrl = `${API_BASE_URL}/accounts/deliverables/${parentDeliverable.id}/files/${file.id}/?action=preview`;
             signedUrlResponse = await fetch(deliverableFileUrl, {
               headers: {
                 ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -843,7 +926,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
           if (signedUrlResponse && signedUrlResponse.ok) {
             const data = await signedUrlResponse.json();
             console.log('Signed URL response data:', data);
-            signedUrl = data.download_url || data.url || data.downloadUrl || data.previewUrl || data.signed_url;
+            signedUrl = data.preview_url || data.url || data.downloadUrl || data.previewUrl || data.signed_url;
           }
           
           // If we got a signed URL, use it with proper handling
