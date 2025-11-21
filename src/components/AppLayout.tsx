@@ -21,6 +21,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
+import { RefundRequestModal } from './RefundRequestModal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import logoImage from '../assets/71eefff8a544630cca22726eead746724ce853a1.png';
 import dropdownImage from '../assets/af259eb6acf8efd20829570c4c334971fdbcab54.png';
@@ -71,6 +72,7 @@ interface AppLayoutProps {
 
 export function AppLayout({ children, userRole, currentView, onViewChange, user, onSignOut }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [refundModalOpen, setRefundModalOpen] = useState(false);
 
   const handleUserMenuAction = (action: string) => {
     switch (action) {
@@ -222,16 +224,73 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
 
         {/* Sidebar Footer */}
         <div className="p-4 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-gray-400 to-gray-600 rounded-full flex items-center justify-center">
-                <Settings className="w-4 h-4 text-white" />
+          {/* Help & Support Section */}
+          <div className="space-y-2 mb-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Support
+            </p>
+            
+            {/* Help & Support */}
+            <button
+              onClick={() => {
+                onViewChange('help-support');
+                closeSidebar();
+              }}
+              className="w-full flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors group"
+            >
+              <div className="flex items-center justify-center w-6 h-6 rounded-md mr-3 bg-blue-100 group-hover:bg-blue-200 transition-colors">
+                <HelpCircle className="w-3 h-3 text-blue-600" />
+              </div>
+              <span className="flex-1 text-left">Help & Support</span>
+            </button>
+
+            {/* Request Refund */}
+            <button
+              onClick={() => {
+                setRefundModalOpen(true);
+                closeSidebar();
+              }}
+              className="w-full flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors group"
+            >
+              <div className="flex items-center justify-center w-6 h-6 rounded-md mr-3 bg-yellow-100 group-hover:bg-yellow-200 transition-colors">
+                <CreditCard className="w-3 h-3 text-yellow-600" />
+              </div>
+              <span className="flex-1 text-left">Request Refund</span>
+            </button>
+
+            {/* Mail Us Directly */}
+            <button
+              onClick={() => {
+                const subject = encodeURIComponent('GradHelper Support Request');
+                const body = encodeURIComponent(`Hello GradHelper Team,\n\nUser: ${user?.name}\nEmail: ${user?.email || 'Not provided'}\n\nMessage:\n\n\nBest regards,\n${user?.name || 'User'}`);
+                window.open(`mailto:support@gradhelper.com?subject=${subject}&body=${body}`, '_blank');
+              }}
+              className="w-full flex items-center px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors group"
+            >
+              <div className="flex items-center justify-center w-6 h-6 rounded-md mr-3 bg-green-100 group-hover:bg-green-200 transition-colors">
+                <Send className="w-3 h-3 text-green-600" />
+              </div>
+              <span className="flex-1 text-left">Email Support</span>
+            </button>
+          </div>
+
+          {/* Settings & Sign Out */}
+          <div className="flex items-center justify-between pt-3 border-t border-gray-300">
+            <button
+              onClick={() => {
+                onViewChange('settings');
+                closeSidebar();
+              }}
+              className="flex items-center space-x-3 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <div className="w-7 h-7 bg-gradient-to-r from-gray-400 to-gray-600 rounded-full flex items-center justify-center">
+                <Settings className="w-3 h-3 text-white" />
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-700">Settings</p>
                 <p className="text-xs text-gray-500">Preferences</p>
               </div>
-            </div>
+            </button>
             <button 
               className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
               onClick={onSignOut}
@@ -347,6 +406,13 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
           </div>
         </main>
       </div>
+
+      {/* Refund Request Modal */}
+      <RefundRequestModal 
+        isOpen={refundModalOpen}
+        onClose={() => setRefundModalOpen(false)}
+        user={user}
+      />
     </div>
   );
 }

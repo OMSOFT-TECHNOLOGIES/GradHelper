@@ -1079,11 +1079,6 @@ export function PartnershipsView({ user }: PartnershipsViewProps) {
                   <p className="earnings-amount">${earningsData.totalEarnings.toFixed(2)}</p>
                   <p className="text-muted-foreground text-sm">Lifetime earnings</p>
                 </div>
-                <div className="earnings-card">
-                  <h4>Pending Earnings</h4>
-                  <p className="earnings-amount">${earningsData.pendingEarnings.toFixed(2)}</p>
-                  <p className="text-muted-foreground text-sm">From active projects</p>
-                </div>
               </div>
               
               <div className="earnings-breakdown">
