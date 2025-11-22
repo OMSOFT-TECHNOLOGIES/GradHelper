@@ -93,75 +93,174 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
   const [adminProfile, setAdminProfile] = useState<any>(null);
   const [socketWarning, setSocketWarning] = useState<string | null>(null);
 
-  // Fetch chatId when selectedStudent changes (admin) or on mount (student)
+  // Fetch or create chat when selectedStudent changes (admin) or on mount (student)
   useEffect(() => {
-    const fetchChatId = async () => {
+    const fetchOrCreateChat = async () => {
       try {
         const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:8000';
         const token = localStorage.getItem('gradhelper_token');
-        let url = `${baseUrl}api/auth/chats/messages`;
+        
+        // First, get list of existing chats
+        const chatsResponse = await fetch(`${baseUrl}api/auth/live-chats/`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!chatsResponse.ok) throw new Error('Failed to fetch chats');
+        const chatsData = await chatsResponse.json();
+        
+        let currentChatId: string | null = null;
+        
         if (userRole === 'admin' && selectedStudent) {
-          url += `?student_id=${selectedStudent.id}`;
-        } else if (userRole === 'student') {
-          const userObj = JSON.parse(localStorage.getItem('gradhelper_user') || '{}');
-          if (userObj.id) {
-            url += `?student_id=${userObj.id}`;
-          }
-        }
-
-        // Fetch all paginated messages
-        let allResults: any[] = [];
-        let chatIdValue: string | null = null;
-        let nextUrl: string | null = url;
-        while (nextUrl) {
-          const response = await fetch(nextUrl, {
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          // For admin: find existing chat with this student or create new one
+          const existingChat = chatsData.chats?.find((chat: any) => 
+            chat.participants?.some((p: any) => p.id === selectedStudent.id)
+          );
+          
+          if (existingChat) {
+            currentChatId = existingChat.id;
+          } else {
+            // Create new chat with student
+            const createResponse = await fetch(`${baseUrl}api/auth/live-chats/`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                title: `Chat with ${selectedStudent.name}`,
+                admin_id: user?.id,
+                student_id: selectedStudent.id
+              })
+            });
+            
+            if (createResponse.ok) {
+              const newChat = await createResponse.json();
+              currentChatId = newChat.chat.id;
             }
-          });
-          if (!response.ok) throw new Error('Failed to fetch chat messages');
-          const data: any = await response.json();
-          if (!chatIdValue && data.results && data.results.length > 0) {
-            chatIdValue = data.results[0].chat;
           }
-          if (data.results && data.results.length > 0) {
-            allResults = allResults.concat(data.results);
+        } else if (userRole === 'student') {
+          // For student: find existing chat or create new one
+          const existingChat = chatsData.chats?.find((chat: any) => 
+            chat.participants?.some((p: any) => p.id === user?.id)
+          );
+          
+          if (existingChat) {
+            currentChatId = existingChat.id;
+          } else {
+            // Create new chat for help
+            const createResponse = await fetch(`${baseUrl}api/auth/live-chats/`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                title: 'Help with assignment'
+              })
+            });
+            
+            if (createResponse.ok) {
+              const newChat = await createResponse.json();
+              currentChatId = newChat.chat.id;
+            }
           }
-          nextUrl = data.next || null;
         }
-
-        if (allResults.length > 0) {
-          setChatId(chatIdValue);
+        
+        if (currentChatId) {
+          setChatId(currentChatId);
+          
+          // Fetch messages for this chat
+          let allMessages: any[] = [];
+          let page = 1;
+          let hasNext = true;
+          
+          while (hasNext) {
+            const messagesResponse = await fetch(`${baseUrl}api/auth/live-chats/${currentChatId}/messages/?page=${page}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+            
+            if (messagesResponse.ok) {
+              const messagesData = await messagesResponse.json();
+              allMessages = [...allMessages, ...messagesData.results];
+              hasNext = !!messagesData.next;
+              page++;
+            } else {
+              hasNext = false;
+            }
+          }
+          
           // Map backend messages to ChatMessage format
-          const mappedMessages = allResults.map((msg: any) => ({
-            id: String(msg.id),
-            senderId: String(msg.sender),
-            senderName: msg.sender_name || '',
-            senderRole: (userRole === 'admin'
-              ? (msg.sender === selectedStudent?.id ? 'student' : 'admin')
-              : (msg.sender === user?.id ? 'student' : 'admin')) as 'student' | 'admin',
-            senderAvatar: msg.sender_avatar || '',
-            content: msg.content,
-            type: (msg.type || 'text') as 'text' | 'image' | 'file' | 'system',
-            attachments: msg.attachments || [],
-            timestamp: msg.createdAt || msg.timestamp,
-            status: (msg.isRead ? 'read' : 'delivered') as 'sending' | 'sent' | 'delivered' | 'read',
-            replyTo: msg.replyTo || null
-          }));
+          const mappedMessages = allMessages.map((msg: any) => {
+            // Ensure valid timestamp
+            let validTimestamp = new Date().toISOString();
+            if (msg.created_at) {
+              const parsedDate = new Date(msg.created_at);
+              if (!isNaN(parsedDate.getTime())) {
+                validTimestamp = parsedDate.toISOString();
+              }
+            } else if (msg.timestamp) {
+              const parsedDate = new Date(msg.timestamp);
+              if (!isNaN(parsedDate.getTime())) {
+                validTimestamp = parsedDate.toISOString();
+              }
+            }
+            
+            return {
+              id: String(msg.id),
+              senderId: String(msg.sender?.id || msg.sender),
+              senderName: msg.sender?.name || msg.sender_name || '',
+              senderRole: (userRole === 'admin'
+                ? (String(msg.sender?.id || msg.sender) === String(selectedStudent?.id) ? 'student' : 'admin')
+                : (String(msg.sender?.id || msg.sender) === String(user?.id) ? 'student' : 'admin')) as 'student' | 'admin',
+              senderAvatar: msg.sender?.avatar || '',
+              content: msg.content,
+              type: (msg.type || 'text') as 'text' | 'image' | 'file' | 'system',
+              attachments: msg.attachments || [],
+              timestamp: validTimestamp,
+              status: (msg.is_read ? 'read' : 'delivered') as 'sending' | 'sent' | 'delivered' | 'read',
+              replyTo: msg.reply_to || null
+            };
+          });
+          
           setMessages(mappedMessages);
+          
+          // Update student sidebar with last message when messages are loaded
+          if (userRole === 'admin' && selectedStudent && mappedMessages.length > 0) {
+            const lastMessage = mappedMessages[mappedMessages.length - 1];
+            if (lastMessage && lastMessage.type !== 'system') {
+              setStudents(prev => prev.map(student => 
+                student.id === selectedStudent.id 
+                  ? {
+                      ...student,
+                      lastMessage: lastMessage.content.length > 50 
+                        ? lastMessage.content.substring(0, 50) + '...' 
+                        : lastMessage.content,
+                      lastMessageTime: formatTimestamp(lastMessage.timestamp)
+                    }
+                  : student
+              ));
+            }
+          }
         } else {
           setChatId(null);
           setMessages([]);
         }
       } catch (err) {
+        console.error('Failed to fetch/create chat:', err);
         setChatId(null);
       }
     };
+    
     if ((userRole === 'admin' && selectedStudent) || userRole === 'student') {
-      fetchChatId();
+      fetchOrCreateChat();
     }
-  }, [userRole, selectedStudent]);
+  }, [userRole, selectedStudent, user?.id]);
 
   // Connect to WebSocket when chatId changes
   useEffect(() => {
@@ -171,17 +270,35 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
     const reconnectDelay = 3000;
 
     function connectWebSocket() {
-      if (!chatId) return;
+      if (!chatId) {
+        console.log('[WebSocket] No chatId available, skipping connection');
+        return;
+      }
       setSocketWarning(null);
-      const wsUrl = `ws://localhost:8000/ws/chat/${chatId}/`;
+      
+      // Use environment variable or fallback
+      const wsBaseUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8000';
+      const wsUrl = `${wsBaseUrl}/ws/chat/${chatId}/`;
       const token = localStorage.getItem('gradhelper_token');
-      const ws = new WebSocket(token ? `${wsUrl}?token=${token}` : wsUrl);
+      const fullWsUrl = token ? `${wsUrl}?token=${token}` : wsUrl;
+      
+      console.log('[WebSocket] Connecting to:', fullWsUrl);
+      const ws = new WebSocket(fullWsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        console.log('[WebSocket] Connected to chat:', chatId, 'User:', user?.id, 'Role:', userRole);
         setIsOnline(true);
         setSocketWarning(null);
         reconnectAttempts = 0;
+        
+        // Send user identification
+        ws.send(JSON.stringify({
+          type: 'user_join',
+          user_id: user?.id,
+          user_role: userRole
+        }));
+        
         // Heartbeat: send ping every 20s
         if (heartbeatRef.current) clearInterval(heartbeatRef.current);
         heartbeatRef.current = setInterval(() => {
@@ -199,49 +316,158 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
             // Heartbeat response
             return;
           }
-          if (data.type === 'chat.message') {
-            // Map incoming WebSocket message to ChatMessage structure
+          if (data.type === 'message_sent') {
+            // New message received
             const msg = data.message;
+            const senderId = String(msg.sender?.id || msg.sender);
+            const currentUserId = String(user?.id);
+            
+            console.log('[WebSocket] Message received from:', senderId, 'Current user:', currentUserId);
+            
+            // Ensure valid timestamp
+            let validTimestamp = new Date().toISOString();
+            if (msg.created_at) {
+              const parsedDate = new Date(msg.created_at);
+              if (!isNaN(parsedDate.getTime())) {
+                validTimestamp = parsedDate.toISOString();
+              }
+            } else if (msg.timestamp) {
+              const parsedDate = new Date(msg.timestamp);
+              if (!isNaN(parsedDate.getTime())) {
+                validTimestamp = parsedDate.toISOString();
+              }
+            }
+            
             const mappedMsg = {
               id: String(msg.id),
-              senderId: String(msg.sender),
-              senderName: msg.sender_name || '',
+              senderId: senderId,
+              senderName: msg.sender?.name || msg.sender_name || '',
               senderRole: (userRole === 'admin'
-                ? (msg.sender === selectedStudent?.id ? 'student' : 'admin')
-                : (msg.sender === user?.id ? 'student' : 'admin')) as 'student' | 'admin',
-              senderAvatar: msg.sender_avatar || '',
+                ? (senderId === String(selectedStudent?.id) ? 'student' : 'admin')
+                : (senderId === currentUserId ? 'student' : 'admin')) as 'student' | 'admin',
+              senderAvatar: msg.sender?.avatar || '',
               content: msg.content,
               type: msg.type || 'text',
               attachments: msg.attachments || [],
-              timestamp: msg.createdAt || msg.timestamp,
-              status: (msg.isRead ? 'read' : 'delivered') as 'sending' | 'sent' | 'delivered' | 'read',
-              replyTo: msg.replyTo || null
+              timestamp: validTimestamp,
+              status: (msg.is_read ? 'read' : 'delivered') as 'sending' | 'sent' | 'delivered' | 'read',
+              replyTo: msg.reply_to || null
             };
-            setMessages((prev) => [...prev, mappedMsg]);
+            
+            // Add message if it's not already in the list (avoid duplicates)
+            setMessages((prev) => {
+              // Check for duplicates by ID, content, and timestamp proximity
+              const existingById = prev.find(m => m.id === mappedMsg.id);
+              const existingByContent = prev.find(m => 
+                m.content === mappedMsg.content && 
+                m.senderId === mappedMsg.senderId &&
+                Math.abs(new Date(m.timestamp).getTime() - new Date(mappedMsg.timestamp).getTime()) < 5000 // Within 5 seconds
+              );
+              const existingTemp = prev.find(m => 
+                m.id.startsWith('temp-') && 
+                m.content === mappedMsg.content && 
+                m.senderId === mappedMsg.senderId
+              );
+              
+              if (existingById) {
+                // Message already exists by ID, don't add duplicate
+                console.log('[WebSocket] Ignoring duplicate message by ID:', mappedMsg.id);
+                return prev;
+              }
+              
+              if (existingTemp) {
+                // Replace temp message with real message
+                console.log('[WebSocket] Replacing temp message with real message:', existingTemp.id, '->', mappedMsg.id);
+                return prev.map(m => 
+                  m.id === existingTemp.id ? { ...mappedMsg, status: 'delivered' } : m
+                );
+              }
+              
+              if (existingByContent) {
+                // Similar message exists, likely a duplicate
+                console.log('[WebSocket] Ignoring duplicate message by content and time');
+                return prev;
+              }
+              
+              console.log('[WebSocket] Adding new message:', mappedMsg.id);
+              return [...prev, mappedMsg];
+            });
+            
+            // Update student sidebar for admin view
+            if (userRole === 'admin' && mappedMsg.type !== 'system') {
+              const messageSenderId = mappedMsg.senderId;
+              const isFromSelectedStudent = messageSenderId === String(selectedStudent?.id);
+              
+              setStudents(prev => prev.map(student => {
+                if (student.id === messageSenderId || (isFromSelectedStudent && student.id === selectedStudent?.id)) {
+                  return {
+                    ...student,
+                    lastMessage: mappedMsg.content.length > 50 
+                      ? mappedMsg.content.substring(0, 50) + '...' 
+                      : mappedMsg.content,
+                    lastMessageTime: formatTimestamp(mappedMsg.timestamp),
+                    unreadCount: isFromSelectedStudent && messageSenderId !== String(user?.id)
+                      ? (student.unreadCount || 0) + 1
+                      : 0
+                  };
+                }
+                return student;
+              }));
+            }
+            
+            // Stop typing indicator when message is received
+            setIsTyping(false);
           }
-          if (data.type === 'chat.typing') {
-            setIsTyping(true);
-            setTimeout(() => setIsTyping(false), 1000);
+          if (data.type === 'message_edited') {
+            // Message was edited
+            const msg = data.message;
+            setMessages((prev) => prev.map(m => 
+              m.id === String(msg.id) 
+                ? { ...m, content: msg.content, isEdited: true }
+                : m
+            ));
           }
-          if (data.type === 'user.online') {
-            setIsOnline(true);
+          if (data.type === 'typing_status') {
+            // Someone started/stopped typing
+            const typingUserId = String(data.user?.id || data.user);
+            const currentUserId = String(user?.id);
+            
+            // Only show typing indicator if it's not the current user
+            if (typingUserId !== currentUserId) {
+              if (data.is_typing) {
+                setIsTyping(true);
+                // Auto-hide typing indicator after 5 seconds as fallback
+                setTimeout(() => setIsTyping(false), 5000);
+              } else {
+                setIsTyping(false);
+              }
+            }
           }
-          if (data.type === 'user.offline') {
-            setIsOnline(false);
+          if (data.type === 'user_status') {
+            // User joined/left chat
+            if (data.action === 'joined') {
+              setIsOnline(true);
+            } else if (data.action === 'left') {
+              setIsOnline(false);
+            }
           }
         } catch (err) {
           console.error('[WebSocket] Error parsing message:', err);
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        console.log('[WebSocket] Disconnected:', event.code, event.reason);
         setIsOnline(false);
         setSocketWarning('Chat connection lost. Trying to reconnect...');
         if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-        if (reconnectAttempts < maxReconnectAttempts) {
+        
+        // Only attempt reconnection if not manually closed
+        if (event.code !== 1000 && reconnectAttempts < maxReconnectAttempts) {
           reconnectAttempts++;
+          console.log(`[WebSocket] Reconnecting attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
           reconnectRef.current = setTimeout(connectWebSocket, reconnectDelay);
-        } else {
+        } else if (reconnectAttempts >= maxReconnectAttempts) {
           setSocketWarning('Unable to reconnect to chat. Please refresh the page.');
         }
       };
@@ -293,8 +519,10 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
             email: item.email,
             avatar: '',
             subject: item.major || '',
+            lastMessage: item.last_message || undefined,
+            lastMessageTime: item.last_message_time ? formatTimestamp(item.last_message_time) : undefined,
             isOnline: item.is_online,
-            unreadCount: 0
+            unreadCount: item.unread_count || 0
           }));
           setStudents(studentsData);
           setSelectedStudent(studentsData[0] || null);
@@ -306,41 +534,118 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
     }
   }, [userRole]);
 
-  // Load chat messages from localStorage
+  // Initialize with default messages only if no backend data
   useEffect(() => {
-    const storageKey = userRole === 'admin' 
-      ? `gradhelper_chat_messages_${selectedStudent?.id || 'default'}`
-      : 'gradhelper_chat_messages';
-      
-    const savedMessages = localStorage.getItem(storageKey);
-    if (savedMessages) {
-      setMessages(JSON.parse(savedMessages));
-    } else {
-      // Initialize with default chat messages
+    if (messages.length === 0 && !chatId) {
       const defaultMessages = createDefaultChatMessages();
       setMessages(defaultMessages);
-      localStorage.setItem(storageKey, JSON.stringify(defaultMessages));
     }
-  }, [selectedStudent]);
+  }, [selectedStudent, chatId]);
+
+  // Update student sidebar when messages change
+  useEffect(() => {
+    if (userRole === 'admin' && messages.length > 0 && selectedStudent) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.type !== 'system') {
+        setStudents(prev => prev.map(student => 
+          student.id === selectedStudent.id 
+            ? {
+                ...student,
+                lastMessage: lastMessage.content.length > 50 
+                  ? lastMessage.content.substring(0, 50) + '...' 
+                  : lastMessage.content,
+                lastMessageTime: formatTimestamp(lastMessage.timestamp),
+                unreadCount: lastMessage.senderId === selectedStudent.id 
+                  ? (student.unreadCount || 0) + (lastMessage.status !== 'read' ? 1 : 0)
+                  : 0 // Reset unread count for admin messages
+              }
+            : student
+        ));
+      }
+    }
+  }, [messages, selectedStudent, userRole]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Simulate typing indicator
+  // Persist messages to localStorage after successful updates
   useEffect(() => {
-    let typingTimer: NodeJS.Timeout;
+    if (messages.length > 0) {
+      const storageKey = userRole === 'admin' 
+        ? `gradhelper_chat_messages_${selectedStudent?.id || 'default'}`
+        : 'gradhelper_chat_messages';
+      localStorage.setItem(storageKey, JSON.stringify(messages));
+    }
+  }, [messages, userRole, selectedStudent]);
+
+  // Handle typing indicators
+  useEffect(() => {
+    let typingTimer: NodeJS.Timeout | null = null;
     
-    if (newMessage.length > 0) {
-      setIsTyping(true);
+    if (newMessage.length > 0 && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Send typing start via WebSocket with user context
+      wsRef.current.send(JSON.stringify({ 
+        type: 'typing_start',
+        user_id: user?.id,
+        user_name: user?.name,
+        user_role: userRole
+      }));
+      
+      // Clear previous timer
+      if (typingTimer) clearTimeout(typingTimer);
+      
+      // Send typing stop after 1 second of no typing
       typingTimer = setTimeout(() => {
-        setIsTyping(false);
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ 
+            type: 'typing_stop',
+            user_id: user?.id,
+            user_name: user?.name,
+            user_role: userRole
+          }));
+        }
       }, 1000);
+    } else if (newMessage.length === 0 && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Send typing stop immediately when message is cleared
+      wsRef.current.send(JSON.stringify({ 
+        type: 'typing_stop',
+        user_id: user?.id,
+        user_name: user?.name,
+        user_role: userRole
+      }));
     }
     
-    return () => clearTimeout(typingTimer);
-  }, [newMessage]);
+    return () => {
+      if (typingTimer) clearTimeout(typingTimer);
+    };
+  }, [newMessage, user?.id, user?.name, userRole]);
+
+  // Mark chat as read when messages are loaded or chat is opened
+  useEffect(() => {
+    const markAsRead = async () => {
+      if (chatId) {
+        try {
+          const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:8000';
+          const token = localStorage.getItem('gradhelper_token');
+          
+          await fetch(`${baseUrl}api/auth/live-chats/${chatId}/mark-read/`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+        } catch (error) {
+          console.error('Failed to mark chat as read:', error);
+        }
+      }
+    };
+
+    if (chatId && messages.length > 0) {
+      markAsRead();
+    }
+  }, [chatId, messages.length]);
 
   const createDefaultChatMessages = (): ChatMessage[] => {
     const currentUserId = user?.id || 'current-user';
@@ -467,50 +772,179 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    // Optimistically add message to UI
+    const messageContent = newMessage.trim();
     const currentUserId = user?.id || 'current-user';
     const currentUserName = user?.name || 'Current User';
-    const message: ChatMessage = {
-      id: Date.now().toString(),
+    const messageTimestamp = new Date().toISOString();
+    
+    // Create optimistic message for UI with unique temp ID
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const tempMessage: ChatMessage = {
+      id: tempId,
       senderId: currentUserId,
       senderName: currentUserName,
       senderRole: userRole || 'student',
       senderAvatar: '',
-      content: newMessage.trim(),
+      content: messageContent,
       type: 'text',
-      timestamp: new Date().toISOString(),
+      timestamp: messageTimestamp,
       status: 'sending'
     };
 
-    setMessages(prev => [...prev, message]);
+    // Optimistically add to UI
+    setMessages(prev => {
+      // Ensure no duplicate temp messages
+      const hasRecentTemp = prev.some(m => 
+        m.content === messageContent && 
+        m.senderId === currentUserId &&
+        m.id.startsWith('temp-') &&
+        Date.now() - new Date(m.timestamp).getTime() < 1000 // Within 1 second
+      );
+      
+      if (hasRecentTemp) {
+        console.log('Preventing duplicate temp message');
+        return prev;
+      }
+      
+      return [...prev, tempMessage];
+    });
     setNewMessage('');
 
-    // Send message through WebSocket
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    try {
+      // First try to send via backend API
+      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('gradhelper_token');
+      
       let recipientId;
       if (userRole === 'admin' && selectedStudent) {
         recipientId = selectedStudent.id;
       } else if (userRole === 'student') {
-        recipientId = 1;
+        // For students, send to admin (you may need to determine the admin ID)
+        recipientId = '1'; // Default admin ID, adjust as needed
       }
-      const socketMsg = {
-        type: 'chat.message',
-        content: newMessage.trim(),
-        recipient_id: recipientId,
-        sender_id: currentUserId,
-        sender_name: currentUserName,
-        sender_role: userRole || 'student',
-        timestamp: message.timestamp
+
+      const payload = {
+        content: messageContent,
+        reply_to: null // Optional: ID of message to reply to
       };
-      console.debug('[WebSocket] Sending message:', socketMsg);
-      wsRef.current.send(JSON.stringify(socketMsg));
-      toast.success('Message sent!');
-    } else {
-      toast.error('Chat connection is not active. Please wait or refresh.');
+
+      const response = await fetch(`${baseUrl}api/auth/live-chats/${chatId}/send-message/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.ok) {
+        const responseData = await response.json();
+        
+        // Ensure valid timestamp from response
+        let responseTimestamp = messageTimestamp;
+        if (responseData.createdAt) {
+          const parsedDate = new Date(responseData.createdAt);
+          if (!isNaN(parsedDate.getTime())) {
+            responseTimestamp = parsedDate.toISOString();
+          }
+        } else if (responseData.timestamp) {
+          const parsedDate = new Date(responseData.timestamp);
+          if (!isNaN(parsedDate.getTime())) {
+            responseTimestamp = parsedDate.toISOString();
+          }
+        }
+        
+        // Update the temp message with real data from backend
+        setMessages(prev => prev.map(msg => 
+          msg.id === tempId 
+            ? {
+                ...msg,
+                id: String(responseData.id),
+                timestamp: responseTimestamp,
+                status: 'sent'
+              }
+            : msg
+        ));
+
+        // Update student sidebar for admin view
+        if (userRole === 'admin' && selectedStudent) {
+          setStudents(prev => prev.map(student => 
+            student.id === selectedStudent.id 
+              ? {
+                  ...student,
+                  lastMessage: messageContent.length > 50 
+                    ? messageContent.substring(0, 50) + '...' 
+                    : messageContent,
+                  lastMessageTime: 'Just now',
+                  unreadCount: 0 // Reset unread count since admin just sent a message
+                }
+              : student
+          ));
+        }
+
+        // Note: Don't send via WebSocket here as the backend API should handle WebSocket broadcasting
+        // This prevents duplicate messages from appearing
+        console.log('[API] Message sent successfully, ID:', responseData.id);
+
+        toast.success('Message sent successfully!');
+      } else {
+        throw new Error(`Failed to send message: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Failed to send message via API:', error);
+      
+      // Mark message as failed
+      setMessages(prev => prev.map(msg => 
+        msg.id === tempMessage.id 
+          ? { ...msg, status: 'sending' }
+          : msg
+      ));
+
+      // Try WebSocket as fallback
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        try {
+          let recipientId;
+          if (userRole === 'admin' && selectedStudent) {
+            recipientId = selectedStudent.id;
+          } else if (userRole === 'student') {
+            recipientId = '1';
+          }
+          
+          const socketMsg = {
+            type: 'send_message',
+            message: messageContent,
+            reply_to: null
+          };
+          
+          wsRef.current.send(JSON.stringify(socketMsg));
+          
+          // Update status to sent via WebSocket
+          setMessages(prev => prev.map(msg => 
+            msg.id === tempMessage.id 
+              ? { ...msg, status: 'sent' }
+              : msg
+          ));
+          
+          toast.warning('Message sent via WebSocket (API unavailable)');
+        } catch (wsError) {
+          console.error('WebSocket fallback failed:', wsError);
+          
+          // Mark as failed
+          setMessages(prev => prev.map(msg => 
+            msg.id === tempMessage.id 
+              ? { ...msg, status: 'sending' }
+              : msg
+          ));
+          
+          toast.error('Failed to send message. Please check your connection and try again.');
+        }
+      } else {
+        toast.error('Unable to send message. Please check your connection.');
+      }
     }
   };
 
@@ -536,8 +970,73 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
     }
   };
 
+  const retryMessage = async (messageId: string) => {
+    const message = messages.find(m => m.id === messageId);
+    if (!message) return;
+
+    // Update status to sending
+    setMessages(prev => prev.map(msg => 
+      msg.id === messageId ? { ...msg, status: 'sending' } : msg
+    ));
+
+    try {
+      const baseUrl = process.env.REACT_APP_BASE_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('gradhelper_token');
+      
+      let recipientId;
+      if (userRole === 'admin' && selectedStudent) {
+        recipientId = selectedStudent.id;
+      } else if (userRole === 'student') {
+        recipientId = '1';
+      }
+
+      const payload = {
+        content: message.content,
+        reply_to: message.replyTo || null
+      };
+
+      const response = await fetch(`${baseUrl}api/auth/api/live-chats/${chatId}/send-message/`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const responseData = await response.json();
+        setMessages(prev => prev.map(msg => 
+          msg.id === messageId 
+            ? {
+                ...msg,
+                id: String(responseData.id),
+                timestamp: responseData.createdAt || responseData.timestamp,
+                status: 'sent'
+              }
+            : msg
+        ));
+        toast.success('Message sent successfully!');
+      } else {
+        throw new Error('Retry failed');
+      }
+    } catch (error) {
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, status: 'sending' } : msg
+      ));
+      toast.error('Failed to retry message. Please try again.');
+    }
+  };
+
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
+    
+    // Handle invalid dates
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid timestamp:', timestamp);
+      return 'Just now';
+    }
+    
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -737,22 +1236,37 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
                 
                 {/* Header Actions */}
                 <div className="flex items-center space-x-2">
-                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => toast.info("Search feature isn't available yet")}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
                     <Search className="w-5 h-5" />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => toast.info("Voice call feature isn't available yet")}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
                     <Phone className="w-5 h-5" />
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => toast.info("Video call feature isn't available yet")}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
                     <Video className="w-5 h-5" />
                   </button>
                   <button 
-                    onClick={() => setIsMuted(!isMuted)}
+                    onClick={() => {
+                      setIsMuted(!isMuted);
+                      toast.info(isMuted ? "Chat unmuted" : "Chat muted");
+                    }}
                     className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                   >
                     {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
                   </button>
-                  <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                  <button 
+                    onClick={() => toast.info("Menu feature isn't available yet")}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
                     <MoreVertical className="w-5 h-5" />
                   </button>
                 </div>
@@ -852,8 +1366,18 @@ export function ChatView({ userRole = 'student', user }: ChatViewProps) {
                   </span>
                   {isCurrentUser && (
                     <StatusIcon className={`w-3 h-3 ${
-                      message.status === 'read' ? 'text-blue-500' : 'text-gray-400'
+                      message.status === 'read' ? 'text-blue-500' : 
+                      message.status === 'sending' ? 'text-orange-500' :
+                      'text-gray-400'
                     }`} />
+                  )}
+                  {message.status === 'sending' && isCurrentUser && message.id.startsWith('temp-') && (
+                    <button
+                      onClick={() => retryMessage(message.id)}
+                      className="text-xs text-blue-500 hover:text-blue-700 ml-2"
+                    >
+                      Retry
+                    </button>
                   )}
                   {message.isEdited && (
                     <span className="text-xs text-gray-400 ml-1">
