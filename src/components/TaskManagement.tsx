@@ -1556,17 +1556,70 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
 
         {/* Professional Content Area */}
         <div className="space-y-6">
-          {/* Loading State */}
+          {/* Professional Loading State */}
           {loading && (
-            <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200/60 p-12">
-              <div className="flex flex-col items-center justify-center space-y-4">
+            <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-slate-200/60 p-16">
+              <div className="flex flex-col items-center justify-center space-y-8">
+                {/* Modern Loading Animation */}
                 <div className="relative">
-                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full opacity-20 animate-pulse"></div>
-                  <Loader2 className="w-8 h-8 text-blue-600 animate-spin absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                  {/* Outer ring */}
+                  <div className="w-20 h-20 rounded-full border-4 border-slate-200 animate-pulse"></div>
+                  {/* Spinning gradient ring */}
+                  <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-transparent border-t-blue-500 border-r-indigo-500 animate-spin"></div>
+                  {/* Inner pulsing dot */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-3 h-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full animate-pulse"></div>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Loading Your Tasks</h3>
-                  <p className="text-slate-500">Please wait while we fetch your academic assignments...</p>
+
+                {/* Professional Content */}
+                <div className="text-center space-y-3">
+                  <h3 className="text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                    Loading Your Academic Tasks
+                  </h3>
+                  <p className="text-slate-600 text-base max-w-md mx-auto leading-relaxed">
+                    Retrieving your assignments and organizing them for optimal academic management
+                  </p>
+                  
+                  {/* Progress Dots */}
+                  <div className="flex items-center justify-center space-x-2 mt-6">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                    <div className="w-2 h-2 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  </div>
+                </div>
+
+                {/* Loading Stats Simulation */}
+                <div className="grid grid-cols-3 gap-6 mt-8">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-blue-200 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <FileText className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="text-sm font-medium text-slate-700">Tasks</div>
+                    <div className="w-8 h-2 bg-slate-200 rounded-full mx-auto mt-1">
+                      <div className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-gradient-to-r from-green-100 to-green-200 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <CheckCircle className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div className="text-sm font-medium text-slate-700">Progress</div>
+                    <div className="w-8 h-2 bg-slate-200 rounded-full mx-auto mt-1">
+                      <div className="h-full bg-gradient-to-r from-green-400 to-green-600 rounded-full animate-pulse" style={{ width: '45%' }}></div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-gradient-to-r from-purple-100 to-purple-200 rounded-xl flex items-center justify-center mx-auto mb-2">
+                      <Award className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div className="text-sm font-medium text-slate-700">Results</div>
+                    <div className="w-8 h-2 bg-slate-200 rounded-full mx-auto mt-1">
+                      <div className="h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full animate-pulse" style={{ width: '85%' }}></div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
