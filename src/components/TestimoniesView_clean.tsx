@@ -31,7 +31,6 @@ import {
   BookOpen
 } from 'lucide-react';
 import { toast } from "sonner";
-import { API_BASE_URL } from '../utils/api';
 
 interface Testimony {
   id: string;
@@ -76,8 +75,6 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
   const [editingTestimony, setEditingTestimony] = useState<Testimony | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'featured'>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     content: '',
@@ -89,426 +86,136 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
     isPublic: true
   });
 
-  // API Functions
-  const fetchTestimonies = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      
-      // Add filtering parameters
-      if (filter !== 'all') {
-        params.append('status', filter);
-      }
-      if (userRole === 'student' && user?.id) {
-        params.append('studentId', user.id);
-      }
-      if (searchTerm.trim()) {
-        params.append('search', searchTerm.trim());
-      }
-      
-      // Get auth token from localStorage
-      const token = localStorage.getItem('gradhelper_token');
-      
-      const response = await fetch(`${API_BASE_URL}/testimonies/?${params.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
-        },
-      });
-      
-      // Check if response is JSON or HTML
-      let result;
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-      } else {
-        // Server returned HTML (likely an error page)
-        const htmlText = await response.text();
-        console.error('Server returned HTML instead of JSON:', htmlText);
-        result = { 
-          error: 'Server error - received HTML response instead of JSON',
-          html_content: htmlText.substring(0, 200) + '...' // Show first 200 chars
-        };
-      }
-      
-      // Log response for debugging
-      console.log('API Response:', response.status, result);
-      
-      if (response.ok && !result.error) {
-        setTestimonies(result.results || result);
-      } else {
-        console.error('Failed to fetch testimonies:', result);
-        
-        let errorMessage = 'Failed to load testimonies';
-        if (result.detail) {
-          errorMessage = result.detail;
-        } else if (result.message) {
-          errorMessage = result.message;
-        } else if (result.error) {
-          errorMessage = result.error;
-        }
-        
-        toast.error(`Loading failed (${response.status})`, {
-          description: errorMessage
-        });
-        
-        // Set demo data for development
-        setTestimonies([
-          {
-            id: 'demo-1',
-            studentId: 'demo-student-1',
-            studentName: 'Sarah Johnson',
-            studentEmail: 'sarah@example.com',
-            studentUniversity: 'Stanford University',
-            studentProgram: 'Computer Science',
-            title: 'Outstanding Support for My Final Year Project',
-            content: 'TheGradHelper provided exceptional guidance throughout my final year project. The expert mentorship and timely feedback helped me achieve an A+ grade. I highly recommend their services to any student seeking academic excellence.',
-            rating: 5,
-            serviceType: 'final_year_project' as const,
-            projectTitle: 'Machine Learning Classification System',
-            completionDate: '2024-05-15',
-            status: 'approved' as const,
-            isPublic: true,
-            createdAt: '2024-05-20T10:00:00Z',
-            updatedAt: '2024-05-20T10:00:00Z',
-            likes: 25,
-            views: 150
-          },
-          {
-            id: 'demo-2',
-            studentId: 'demo-student-2',
-            studentName: 'Michael Chen',
-            studentEmail: 'michael@example.com',
-            studentUniversity: 'MIT',
-            studentProgram: 'Engineering',
-            title: 'Perfect Thesis Writing Support',
-            content: 'The research assistance and writing guidance I received was phenomenal. My thesis was completed ahead of schedule and received excellent reviews from the committee.',
-            rating: 5,
-            serviceType: 'thesis' as const,
-            projectTitle: 'Advanced Robotics Control Systems',
-            completionDate: '2024-04-10',
-            status: 'featured' as const,
-            isPublic: true,
-            createdAt: '2024-04-15T14:30:00Z',
-            updatedAt: '2024-04-15T14:30:00Z',
-            likes: 42,
-            views: 280
-          }
-        ]);
-      }
-    } catch (error) {
-      console.error('Error fetching testimonies:', error);
-      toast.error('Network error', {
-        description: 'Unable to connect to the server. Please check your connection and try again.'
-      });
-      
-      // Set demo data for development
-      setTestimonies([
+  // Load testimonies from localStorage
+  useEffect(() => {
+    const savedTestimonies = localStorage.getItem('gradhelper_testimonies');
+    if (savedTestimonies) {
+      setTestimonies(JSON.parse(savedTestimonies));
+    } else {
+      // Add default testimonies for demo
+      const defaultTestimonies: Testimony[] = [
         {
-          id: 'demo-1',
-          studentId: 'demo-student-1',
+          id: '1',
+          studentId: 'student1',
           studentName: 'Sarah Johnson',
-          studentEmail: 'sarah@example.com',
-          studentUniversity: 'Stanford University',
+          studentEmail: 'sarah.j@university.edu',
+          studentAvatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64&h=64&fit=crop&crop=face',
+          studentUniversity: 'MIT',
           studentProgram: 'Computer Science',
-          title: 'Outstanding Support for My Final Year Project',
-          content: 'TheGradHelper provided exceptional guidance throughout my final year project. The expert mentorship and timely feedback helped me achieve an A+ grade. I highly recommend their services to any student seeking academic excellence.',
+          title: 'Exceptional Support for My Final Year Project',
+          content: 'TheGradHelper completely transformed my final year project experience. The expert guidance was incredible, and I achieved the highest grade in my class! The team was professional, responsive, and truly understood my requirements.',
           rating: 5,
-          serviceType: 'final_year_project' as const,
-          projectTitle: 'Machine Learning Classification System',
-          completionDate: '2024-05-15',
-          status: 'approved' as const,
+          serviceType: 'final_year_project',
+          projectTitle: 'Machine Learning for Healthcare Diagnostics',
+          completionDate: '2024-12-15',
+          status: 'featured',
           isPublic: true,
-          createdAt: '2024-05-20T10:00:00Z',
-          updatedAt: '2024-05-20T10:00:00Z',
-          likes: 25,
-          views: 150
-        }
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load testimonies on component mount and when filters change
-  useEffect(() => {
-    fetchTestimonies();
-  }, [filter, userRole, user?.id]);
-
-  // Debounce search
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (searchTerm !== '') {
-        fetchTestimonies();
-      }
-    }, 500);
-    
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
-
-  // API helper functions
-  const incrementViews = async (testimonyId: string) => {
-    try {
-      // Get auth token from localStorage
-      const token = localStorage.getItem('gradhelper_token');
-      
-      const response = await fetch(`${API_BASE_URL}/testimonies/${testimonyId}/view/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
+          createdAt: '2024-12-20T10:00:00Z',
+          updatedAt: '2024-12-20T10:00:00Z',
+          likes: 24,
+          views: 156
         },
-      });
-      
-      // Check if response is JSON or HTML
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        if (!response.ok) {
-          const result = await response.json();
-          console.error('Failed to increment views:', result);
-        }
-      } else {
-        // Server returned HTML - likely API not available, handle silently
-        console.log('API not available for view increment - operating in demo mode');
-      }
-    } catch (error) {
-      console.error('Error incrementing views:', error);
-      // Fail silently for view increments
-    }
-  };
-
-  const likeTestimony = async (testimonyId: string) => {
-    try {
-      // Get auth token from localStorage
-      const token = localStorage.getItem('gradhelper_token');
-      
-      const response = await fetch(`${API_BASE_URL}/testimonies/${testimonyId}/like/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
+        {
+          id: '2',
+          studentId: 'student2',
+          studentName: 'Mike Wilson',
+          studentEmail: 'mike.w@business.edu',
+          studentAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=face',
+          studentUniversity: 'Harvard Business School',
+          studentProgram: 'MBA',
+          title: 'Outstanding MBA Dissertation Support',
+          content: 'I was struggling with my MBA dissertation until I found TheGradHelper. The quality of research and writing support was outstanding. They helped me structure my arguments and provided valuable insights.',
+          rating: 5,
+          serviceType: 'thesis',
+          projectTitle: 'Digital Transformation in Traditional Industries',
+          completionDate: '2024-11-30',
+          status: 'approved',
+          isPublic: true,
+          createdAt: '2024-12-18T14:30:00Z',
+          updatedAt: '2024-12-18T14:30:00Z',
+          likes: 18,
+          views: 89
         },
-      });
-      
-      // Check if response is JSON or HTML
-      let result;
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-      } else {
-        // Server returned HTML - likely API not available
-        console.log('API not available for like functionality - simulating like');
-        
-        // Update local state to simulate like
-        setTestimonies(prev => prev.map(t => 
-          t.id === testimonyId 
-            ? { ...t, likes: t.likes + 1 }
-            : t
-        ));
-        toast.success('Testimony liked!');
-        return;
-      }
-      
-      if (response.ok) {
-        await fetchTestimonies(); // Refresh the list
-        toast.success('Testimony liked!');
-      } else {
-        let errorMessage = 'Failed to like testimony';
-        if (result.detail) {
-          errorMessage = result.detail;
-        } else if (result.message) {
-          errorMessage = result.message;
-        } else if (result.error) {
-          errorMessage = result.error;
+        {
+          id: '3',
+          studentId: 'student3',
+          studentName: 'Emily Davis',
+          studentEmail: 'emily.d@stanford.edu',
+          studentAvatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=64&h=64&fit=crop&crop=face',
+          studentUniversity: 'Stanford University',
+          studentProgram: 'Psychology PhD',
+          title: 'Expert Statistical Analysis Help',
+          content: 'As a PhD student, I needed specialized help with statistical analysis. TheGradHelper connected me with the perfect expert. Professional and reliable service that exceeded my expectations.',
+          rating: 4,
+          serviceType: 'research_paper',
+          projectTitle: 'Cognitive Behavioral Patterns in Social Media Usage',
+          completionDate: '2024-12-10',
+          status: 'approved',
+          isPublic: true,
+          createdAt: '2024-12-22T09:15:00Z',
+          updatedAt: '2024-12-22T09:15:00Z',
+          likes: 12,
+          views: 45
         }
-        
-        toast.error(`Like failed (${response.status})`, {
-          description: errorMessage
-        });
-      }
-    } catch (error) {
-      console.error('Error liking testimony:', error);
-      toast.error('Network error', {
-        description: 'Unable to connect to the server. Please try again.'
-      });
+      ];
+      setTestimonies(defaultTestimonies);
+      localStorage.setItem('gradhelper_testimonies', JSON.stringify(defaultTestimonies));
     }
+  }, []);
+
+  // Save testimonies to localStorage
+  const saveTestimonies = (newTestimonies: Testimony[]) => {
+    setTestimonies(newTestimonies);
+    localStorage.setItem('gradhelper_testimonies', JSON.stringify(newTestimonies));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.title || !formData.content) {
-      toast.error('Missing required fields', {
-        description: 'Please fill in all required fields marked with *'
-      });
+    if (!formData.title || !formData.content || !user) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
-    // Show loading toast
-    toast.loading(editingTestimony ? 'Updating your testimony...' : 'Submitting your testimony...', { 
-      id: 'testimony-submit' 
-    });
+    const testimony: Testimony = {
+      id: editingTestimony?.id || Date.now().toString(),
+      studentId: user.id || 'current-user',
+      studentName: user.name || 'Anonymous',
+      studentEmail: user.email || '',
+      studentAvatar: user.avatar,
+      studentUniversity: formData.studentUniversity,
+      studentProgram: formData.studentProgram,
+      title: formData.title,
+      content: formData.content,
+      rating: formData.rating,
+      serviceType: formData.serviceType,
+      projectTitle: formData.projectTitle,
+      completionDate: new Date().toISOString().split('T')[0],
+      status: editingTestimony?.status || 'pending',
+      isPublic: formData.isPublic,
+      createdAt: editingTestimony?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      adminNotes: editingTestimony?.adminNotes,
+      likes: editingTestimony?.likes || 0,
+      views: editingTestimony?.views || 0
+    };
 
-    setSubmitting(true);
-    
-    try {
-      // Prepare JSON payload - only include fields that have values
-      const testimonyData: any = {
-        studentId: user?.id || 'current-user',
-        studentName: user?.name || 'Anonymous User',
-        studentEmail: user?.email || 'user@example.com',
-        studentUniversity: formData.studentUniversity,
-        studentProgram: formData.studentProgram,
-        status: editingTestimony?.status || 'pending',
-        title: formData.title,
-        content: formData.content,
-        rating: formData.rating,
-        isPublic: formData.isPublic,
-        // Only include optional fields if they have values
-        ...(formData.serviceType && { serviceType: formData.serviceType }),
-        ...(formData.projectTitle && { projectTitle: formData.projectTitle }),
-        ...(formData.studentUniversity && { studentUniversity: formData.studentUniversity }),
-        ...(formData.studentProgram && { studentProgram: formData.studentProgram }),
-      };
-
-      // Log the data being sent for debugging
-      console.log('Submitting testimony data:', testimonyData);
-
-      // Get auth token from localStorage
-      const token = localStorage.getItem('gradhelper_token');
-      
-      let response;
-      const jsonBody = JSON.stringify(testimonyData);
-      console.log('JSON body being sent:', jsonBody);
-      
-      if (editingTestimony) {
-        // Update existing testimony
-        response = await fetch(`${API_BASE_URL}/testimonies/${editingTestimony.id}/`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` }),
-          },
-          body: jsonBody,
-        });
-      } else {
-        // Create new testimony
-        response = await fetch(`${API_BASE_URL}/testimonies/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` }),
-          },
-          body: jsonBody,
-        });
-      }
-
-      // Check if response is JSON or HTML
-      let result;
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        result = await response.json();
-      } else {
-        // Server returned HTML (likely an error page)
-        const htmlText = await response.text();
-        console.error('Server returned HTML instead of JSON:', htmlText);
-        
-        // Handle as demo mode - create local testimony
-        const newTestimony: Testimony = {
-          id: editingTestimony?.id || `demo-${Date.now()}`,
-          studentId: user?.id || 'current-user',
-          studentName: user?.name || 'Anonymous User',
-          studentEmail: user?.email || 'user@example.com',
-          studentUniversity: formData.studentUniversity,
-          studentProgram: formData.studentProgram,
-          title: formData.title,
-          content: formData.content,
-          rating: formData.rating,
-          serviceType: formData.serviceType,
-          projectTitle: formData.projectTitle,
-          completionDate: new Date().toISOString().split('T')[0],
-          status: editingTestimony?.status || 'pending',
-          isPublic: formData.isPublic,
-          createdAt: editingTestimony?.createdAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          adminNotes: editingTestimony?.adminNotes,
-          likes: editingTestimony?.likes || 0,
-          views: editingTestimony?.views || 0
-        };
-        
-        // Update local state
-        if (editingTestimony) {
-          setTestimonies(prev => prev.map(t => t.id === editingTestimony.id ? newTestimony : t));
-        } else {
-          setTestimonies(prev => [newTestimony, ...prev]);
-        }
-        
-        resetForm();
-        setIsDialogOpen(false);
-        
-        toast.success(editingTestimony ? 'Testimony updated successfully!' : 'Testimony submitted successfully!', {
-          id: 'testimony-submit',
-          description: editingTestimony ? 'Your changes have been saved.' : 'Your testimony is pending review and will be published once approved.'
-        });
-        
-        return;
-      }
-      
-      // Log response for debugging
-      console.log('API Response:', response.status, result);
-
-      if (response.ok) {
-        await fetchTestimonies(); // Refresh the list
-        resetForm();
-        setIsDialogOpen(false);
-        
-        toast.success(editingTestimony ? 'Testimony updated successfully!' : 'Testimony submitted successfully!', {
-          id: 'testimony-submit',
-          description: editingTestimony ? 'Your changes have been saved.' : 'Your testimony is pending review and will be published once approved.'
-        });
-      } else {
-        // Handle API errors with detailed information
-        console.error('API Error Details:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: result
-        });
-        
-        let errorMessage = `Failed to ${editingTestimony ? 'update' : 'submit'} testimony`;
-        
-        if (result.detail) {
-          errorMessage = result.detail;
-        } else if (result.message) {
-          errorMessage = result.message;
-        } else if (result.error) {
-          errorMessage = result.error;
-        } else if (typeof result === 'object') {
-          // Handle field-specific errors
-          const fieldErrors = Object.entries(result)
-            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
-            .join('; ');
-          if (fieldErrors) errorMessage = fieldErrors;
-        }
-        
-        toast.error(`${editingTestimony ? 'Update' : 'Submission'} failed (${response.status})`, {
-          id: 'testimony-submit',
-          description: errorMessage
-        });
-      }
-    } catch (error) {
-      console.error('Testimony submission error:', error);
-      toast.error('Network error', {
-        id: 'testimony-submit',
-        description: 'Unable to connect to the server. Please check your connection and try again.'
+    let newTestimonies;
+    if (editingTestimony) {
+      newTestimonies = testimonies.map(t => 
+        t.id === editingTestimony.id ? testimony : t
+      );
+      toast.success('Testimony updated successfully!');
+    } else {
+      newTestimonies = [testimony, ...testimonies];
+      toast.success('Testimony submitted successfully!', {
+        description: 'Your testimony is pending review and will be published once approved.'
       });
-    } finally {
-      setSubmitting(false);
     }
+
+    saveTestimonies(newTestimonies);
+    resetForm();
+    setIsDialogOpen(false);
   };
 
   const resetForm = () => {
@@ -540,135 +247,26 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      // Get auth token from localStorage
-      const token = localStorage.getItem('gradhelper_token');
-      
-      const response = await fetch(`${API_BASE_URL}/testimonies/${id}/`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
-        },
-      });
-      
-      // Check if response is JSON or HTML
-      let result;
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        if (!response.ok) {
-          result = await response.json();
-        }
-      } else {
-        // Server returned HTML - likely API not available
-        console.log('API not available for delete - simulating delete');
-        
-        // Remove from local state
-        setTestimonies(prev => prev.filter(t => t.id !== id));
-        toast.success('Testimony deleted successfully!');
-        return;
-      }
-      
-      if (response.ok) {
-        await fetchTestimonies(); // Refresh the list
-        toast.success('Testimony deleted successfully!');
-      } else {
-        let errorMessage = 'Failed to delete testimony';
-        if (result?.detail) {
-          errorMessage = result.detail;
-        } else if (result?.message) {
-          errorMessage = result.message;
-        } else if (result?.error) {
-          errorMessage = result.error;
-        }
-        
-        toast.error(`Delete failed (${response.status})`, {
-          description: errorMessage
-        });
-      }
-    } catch (error) {
-      console.error('Error deleting testimony:', error);
-      toast.error('Network error', {
-        description: 'Unable to connect to the server. Please try again.'
-      });
-    }
+  const handleDelete = (id: string) => {
+    const newTestimonies = testimonies.filter(t => t.id !== id);
+    saveTestimonies(newTestimonies);
+    toast.success('Testimony deleted successfully!');
   };
 
-  const handleStatusChange = async (id: string, status: Testimony['status']) => {
-    try {
-      // Get auth token from localStorage
-      const token = localStorage.getItem('gradhelper_token');
-      
-      const response = await fetch(`${API_BASE_URL}/testimonies/${id}/`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` }),
-        },
-        body: JSON.stringify({ status }),
-      });
-      
-      // Check if response is JSON or HTML
-      let result;
-      const contentType = response.headers.get('content-type');
-      
-      if (contentType && contentType.includes('application/json')) {
-        if (!response.ok) {
-          result = await response.json();
-        }
-      } else {
-        // Server returned HTML - likely API not available
-        console.log('API not available for status change - simulating status change');
-        
-        // Update local state
-        setTestimonies(prev => prev.map(t => 
-          t.id === id ? { ...t, status } : t
-        ));
-        
-        const statusMessages = {
-          approved: 'Testimony approved and published!',
-          rejected: 'Testimony rejected',
-          featured: 'Testimony featured on landing page!',
-          pending: 'Testimony status set to pending'
-        };
-        
-        toast.success(statusMessages[status]);
-        return;
-      }
-      
-      if (response.ok) {
-        await fetchTestimonies(); // Refresh the list
-        
-        const statusMessages = {
-          approved: 'Testimony approved and published!',
-          rejected: 'Testimony rejected',
-          featured: 'Testimony featured on landing page!',
-          pending: 'Testimony status set to pending'
-        };
-        
-        toast.success(statusMessages[status]);
-      } else {
-        let errorMessage = 'Failed to update testimony status';
-        if (result?.detail) {
-          errorMessage = result.detail;
-        } else if (result?.message) {
-          errorMessage = result.message;
-        } else if (result?.error) {
-          errorMessage = result.error;
-        }
-        
-        toast.error(`Status update failed (${response.status})`, {
-          description: errorMessage
-        });
-      }
-    } catch (error) {
-      console.error('Error updating testimony status:', error);
-      toast.error('Network error', {
-        description: 'Unable to connect to the server. Please try again.'
-      });
-    }
+  const handleStatusChange = (id: string, status: Testimony['status']) => {
+    const newTestimonies = testimonies.map(t =>
+      t.id === id ? { ...t, status, updatedAt: new Date().toISOString() } : t
+    );
+    saveTestimonies(newTestimonies);
+    
+    const statusMessages = {
+      approved: 'Testimony approved and published!',
+      rejected: 'Testimony rejected',
+      featured: 'Testimony featured on landing page!',
+      pending: 'Testimony status set to pending'
+    };
+    
+    toast.success(statusMessages[status]);
   };
 
   const getServiceTypeInfo = (serviceType: string) => {
@@ -695,8 +293,31 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
     return icons[status as keyof typeof icons] || Clock;
   };
 
-  // Testimonies are already filtered by the API
-  const filteredTestimonies = testimonies;
+  // Filter testimonies based on role, filter, and search
+  const filteredTestimonies = testimonies.filter(testimony => {
+    // Role-based filtering
+    if (userRole === 'student' && testimony.studentId !== user?.id) {
+      return false;
+    }
+    
+    // Status filtering
+    if (filter !== 'all' && testimony.status !== filter) {
+      return false;
+    }
+    
+    // Search filtering
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        testimony.title.toLowerCase().includes(searchLower) ||
+        testimony.content.toLowerCase().includes(searchLower) ||
+        testimony.studentName.toLowerCase().includes(searchLower) ||
+        testimony.projectTitle?.toLowerCase().includes(searchLower)
+      );
+    }
+    
+    return true;
+  });
 
   // Statistics for admin view
   const stats = {
@@ -709,7 +330,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Professional Header Section */}
       <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -717,15 +338,15 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
             <div className="space-y-6">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg">
                     <Quote className="w-8 h-8 text-white" />
                   </div>
-                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                  <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
                     <Star className="w-3 h-3 text-white fill-current" />
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-4xl font-bold text-gray-900">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-emerald-800 bg-clip-text text-transparent">
                     {userRole === 'admin' ? 'Student Success Stories' : 'My Success Journey'}
                   </h1>
                   <p className="text-xl text-gray-600 font-medium mt-2">
@@ -748,13 +369,14 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
               <div className="flex-shrink-0">
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
-                    <button 
+                    <Button 
                       onClick={resetForm}
-                      className="group bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 border-0 text-lg flex items-center"
+                      size="lg"
+                      className="group bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 hover:from-blue-700 hover:via-purple-700 hover:to-emerald-700 text-white font-semibold px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 border-0"
                     >
                       <Plus className="w-6 h-6 mr-3 group-hover:rotate-90 transition-transform duration-300" />
-                      <span>Share Your Success Story</span>
-                    </button>
+                      <span className="text-lg">Share Your Success Story</span>
+                    </Button>
                   </DialogTrigger>
                   
                   <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl">
@@ -905,10 +527,9 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                         </Button>
                         <Button 
                           type="submit"
-                          disabled={submitting}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 disabled:opacity-50"
+                          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-8 py-2"
                         >
-                          {submitting ? 'Submitting...' : (editingTestimony ? 'Update' : 'Submit')} Story
+                          {editingTestimony ? 'Update' : 'Submit'} Story
                         </Button>
                       </div>
                     </form>
@@ -925,7 +546,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
         <div className="bg-white/60 backdrop-blur-sm border-b border-gray-200/50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
-              <Card className="bg-blue-50 border border-blue-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -943,7 +564,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                 </CardContent>
               </Card>
               
-              <Card className="bg-amber-50 border border-amber-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200 border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -961,7 +582,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                 </CardContent>
               </Card>
               
-              <Card className="bg-emerald-50 border border-emerald-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-emerald-50 via-emerald-100 to-emerald-200 border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -979,7 +600,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                 </CardContent>
               </Card>
               
-              <Card className="bg-purple-50 border border-purple-200 shadow-sm hover:shadow-md transition-all duration-300">
+              <Card className="bg-gradient-to-br from-purple-50 via-purple-100 to-purple-200 border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -997,7 +618,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                 </CardContent>
               </Card>
               
-              <Card className="bg-orange-50 border border-orange-200 shadow-sm hover:shadow-md transition-all duration-300 col-span-2 lg:col-span-1">
+              <Card className="bg-gradient-to-br from-orange-50 via-orange-100 to-orange-200 border-0 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 col-span-2 lg:col-span-1">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -1024,12 +645,12 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         
         {/* Enhanced Filters and Search */}
-        <Card className="mb-10 border border-gray-200 shadow-sm bg-white rounded-xl overflow-hidden">
+        <Card className="mb-10 border-0 shadow-xl bg-white/90 backdrop-blur-sm rounded-2xl overflow-hidden">
           <CardContent className="p-8">
             <div className="flex flex-col xl:flex-row gap-8 items-start xl:items-center justify-between">
               <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-sm">
+                  <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
                     <Filter className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -1071,20 +692,10 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
 
         {/* Testimonies List */}
         <div className="testimonies-list">
-          {loading ? (
-            <Card className="border border-gray-200 shadow-sm bg-white rounded-xl">
+          {filteredTestimonies.length === 0 ? (
+            <Card className="border-0 shadow-2xl bg-gradient-to-br from-gray-50 via-white to-blue-50 rounded-3xl overflow-hidden">
               <CardContent className="p-16 text-center">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-pulse">
-                  <MessageCircle className="w-8 h-8 text-blue-500" />
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">Loading testimonials...</h3>
-                <p className="text-gray-600">Please wait while we fetch the latest success stories.</p>
-              </CardContent>
-            </Card>
-          ) : filteredTestimonies.length === 0 ? (
-            <Card className="border border-gray-200 shadow-lg bg-white rounded-2xl overflow-hidden">
-              <CardContent className="p-16 text-center">
-                <div className="w-32 h-32 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg">
+                <div className="w-32 h-32 bg-gradient-to-r from-blue-100 via-purple-100 to-emerald-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl">
                   <MessageCircle className="w-16 h-16 text-blue-500" />
                 </div>
                 <h3 className="text-3xl font-bold text-gray-900 mb-6">
@@ -1100,7 +711,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                   <Button 
                     onClick={() => setIsDialogOpen(true)}
                     size="lg"
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-12 py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 text-lg"
+                    className="bg-gradient-to-r from-blue-600 via-purple-600 to-emerald-600 hover:from-blue-700 hover:via-purple-700 hover:to-emerald-700 text-white font-bold px-12 py-4 rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-300 text-lg"
                   >
                     <Plus className="w-6 h-6 mr-3" />
                     Share Your Success Story
@@ -1115,17 +726,13 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                 const StatusIcon = getStatusIcon(testimony.status);
                 
                 return (
-                  <Card 
-                    key={testimony.id} 
-                    className="group bg-white border border-gray-200 shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 rounded-2xl overflow-hidden cursor-pointer"
-                    onClick={() => incrementViews(testimony.id)}
-                  >
+                  <Card key={testimony.id} className="group bg-white border-0 shadow-xl hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 rounded-3xl overflow-hidden">
                     {/* Featured Badge */}
                     {testimony.status === 'featured' && (
-                      <div className="bg-orange-500 px-6 py-4">
+                      <div className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 px-6 py-4">
                         <div className="flex items-center gap-3 text-white font-bold text-lg">
                           <Star className="w-6 h-6 fill-current" />
-                           Featured Success Story
+                          🌟 Featured Success Story
                         </div>
                       </div>
                     )}
@@ -1134,13 +741,15 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-6 flex-1">
                           <div className="relative flex-shrink-0">
-                            <div className="w-20 h-20 rounded-3xl bg-blue-600 flex items-center justify-center ring-4 ring-white shadow-2xl">
-                              <span className="text-2xl font-bold text-white">
-                                {testimony.studentName.split(' ').map(name => name.charAt(0)).join('').substring(0, 2)}
-                              </span>
+                            <div className="w-20 h-20 rounded-3xl overflow-hidden ring-4 ring-white shadow-2xl">
+                              <img 
+                                src={testimony.studentAvatar || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&crop=face`} 
+                                alt={testimony.studentName}
+                                className="w-full h-full object-cover"
+                              />
                             </div>
                             {/* Service Type Badge */}
-                            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg">
+                            <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
                               <ServiceIcon className="w-5 h-5 text-white" />
                             </div>
                           </div>
@@ -1156,7 +765,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                             
                             <div className="space-y-3">
                               <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-full text-sm font-bold text-blue-700 border border-blue-200">
+                                <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-full text-sm font-bold text-blue-700 border border-blue-200">
                                   <ServiceIcon className="w-5 h-5" />
                                   {getServiceTypeInfo(testimony.serviceType).label}
                                 </div>
@@ -1253,7 +862,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                     <CardContent className="px-8 pb-8">
                       {/* Project Title Banner */}
                       {testimony.projectTitle && (
-                        <div className="mb-8 p-6 bg-blue-50 rounded-2xl border-l-4 border-blue-500 shadow-sm">
+                        <div className="mb-8 p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-2xl border-l-4 border-blue-500 shadow-sm">
                           <div className="flex items-center gap-3 text-blue-700 mb-2">
                             <FileText className="w-6 h-6" />
                             <span className="font-bold text-sm uppercase tracking-wider">Project</span>
@@ -1269,7 +878,7 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                       
                       {/* Testimony Content */}
                       <div className="relative mb-8">
-                        <div className="absolute top-0 left-0 w-2 h-full bg-blue-500 rounded-full"></div>
+                        <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-blue-500 via-purple-500 to-emerald-500 rounded-full"></div>
                         <blockquote className="pl-8 text-gray-700 text-xl leading-relaxed font-medium italic">
                           "{testimony.content}"
                         </blockquote>
@@ -1293,16 +902,10 @@ export function TestimoniesView({ userRole = 'student', user }: TestimoniesViewP
                                 <Eye className="w-4 h-4" />
                                 {testimony.views} views
                               </span>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  likeTestimony(testimony.id);
-                                }}
-                                className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full font-medium hover:bg-emerald-200 transition-colors"
-                              >
+                              <span className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-4 py-2 rounded-full font-medium">
                                 <ThumbsUp className="w-4 h-4" />
                                 {testimony.likes} likes
-                              </button>
+                              </span>
                             </>
                           )}
                         </div>

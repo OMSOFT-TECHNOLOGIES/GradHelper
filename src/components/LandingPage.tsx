@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import logoImage from '../assets/71eefff8a544630cca22726eead746724ce853a1.png';
 import servicesImage from '../assets/b7c125602c03f55d969e304152171635767e723c.png';
+import { API_BASE_URL } from '../utils/api';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -125,7 +126,8 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
       university: "MIT", 
       avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64&h=64&fit=crop&crop=face",
       rating: 5,
-      text: "TheGradHelper completely transformed my final year project experience. The expert guidance was incredible, and I achieved the highest grade in my class!"
+      text: "TheGradHelper completely transformed my final year project experience. The expert guidance was incredible, and I achieved the highest grade in my class!",
+      initials: "SJ"
     },
     {
       name: "Mike Wilson", 
@@ -133,7 +135,8 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
       university: "Harvard Business School",
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=face",
       rating: 5,
-      text: "I was struggling with my MBA dissertation until I found TheGradHelper. The quality of research and writing support was outstanding. Highly recommend!"
+      text: "I was struggling with my MBA dissertation until I found TheGradHelper. The quality of research and writing support was outstanding. Highly recommend!",
+      initials: "MW"
     },
     {
       name: "Emily Davis",
@@ -141,7 +144,8 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
       university: "Stanford University",
       avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=64&h=64&fit=crop&crop=face",
       rating: 5,
-      text: "As a PhD student, I needed specialized help with statistical analysis. TheGradHelper connected me with the perfect expert. Professional and reliable!"
+      text: "As a PhD student, I needed specialized help with statistical analysis. TheGradHelper connected me with the perfect expert. Professional and reliable!",
+      initials: "ED"
     },
     {
       name: "James Chen",
@@ -149,7 +153,8 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
       university: "UC Berkeley", 
       avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face",
       rating: 5,
-      text: "The project development support was amazing. They helped me build a complex system that impressed my professors. Couldn't have done it without them!"
+      text: "The project development support was amazing. They helped me build a complex system that impressed my professors. Couldn't have done it without them!",
+      initials: "JC"
     },
     {
       name: "Maria Rodriguez",
@@ -157,7 +162,8 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
       university: "Johns Hopkins",
       avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=64&h=64&fit=crop&crop=face",
       rating: 5,
-      text: "Research paper writing was always my weakness. TheGradHelper taught me how to structure arguments and cite properly. My grades improved dramatically!"
+      text: "Research paper writing was always my weakness. TheGradHelper taught me how to structure arguments and cite properly. My grades improved dramatically!",
+      initials: "MR"
     },
     {
       name: "David Thompson",
@@ -165,7 +171,8 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
       university: "Yale Law School",
       avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=64&h=64&fit=crop&crop=face",
       rating: 5,
-      text: "Legal research is complex, but their experts made it manageable. They provided case analysis that helped me excel in constitutional law. Exceptional service!"
+      text: "Legal research is complex, but their experts made it manageable. They provided case analysis that helped me excel in constitutional law. Exceptional service!",
+      initials: "DT"
     }
   ];
 
@@ -282,27 +289,63 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
     }
   }, []);
 
-  // Load featured testimonies from localStorage
+  // Load featured testimonies from API
   useEffect(() => {
-    const savedTestimonies = localStorage.getItem('gradhelper_testimonies');
-    if (savedTestimonies) {
-      const allTestimonies = JSON.parse(savedTestimonies);
-      // Only show approved and featured testimonies on landing page
-      const featuredTestimonies = allTestimonies
-        .filter((t: any) => t.status === 'approved' || t.status === 'featured')
-        .map((t: any) => ({
-          name: t.studentName,
-          role: t.studentProgram || 'Student',
-          university: t.studentUniversity || 'University',
-          avatar: t.studentAvatar || `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=64&h=64&fit=crop&crop=face`,
-          rating: t.rating,
-          text: t.content
-        }));
-      
-      if (featuredTestimonies.length > 0) {
-        setDynamicTestimonials(featuredTestimonies);
+    const fetchTestimonials = async () => {
+      try {
+        console.log('Fetching testimonials from API...');
+        
+        const response = await fetch(`${API_BASE_URL}/testimonies/public/`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        // Check if response is JSON or HTML
+        let result;
+        const contentType = response.headers.get('content-type');
+        
+        if (contentType && contentType.includes('application/json')) {
+          result = await response.json();
+        } else {
+          // Server returned HTML (likely an error page)
+          const htmlText = await response.text();
+          console.error('Server returned HTML instead of JSON:', htmlText);
+          result = [];
+        }
+        
+        console.log('API Response:', response.status, result);
+        
+        if (response.ok && Array.isArray(result)) {
+          // Only show approved and featured testimonies on landing page
+          const featuredTestimonies = result
+            .filter((t: any) => t.status === 'approved' || t.status === 'featured')
+            .map((t: any) => ({
+              name: t.studentName,
+              role: t.studentProgram || 'Student',
+              university: t.studentUniversity || 'University',
+              rating: typeof t.rating === 'string' ? parseFloat(t.rating) : t.rating,
+              text: t.content,
+              initials: t.studentName.split(' ').map((name: string) => name.charAt(0)).join('').substring(0, 2)
+            }));
+          
+          console.log('Featured testimonials:', featuredTestimonies);
+          
+          if (featuredTestimonies.length > 0) {
+            setDynamicTestimonials(featuredTestimonies);
+          }
+        } else {
+          console.error('Failed to fetch testimonials or invalid response format');
+          // Keep existing static testimonials as fallback
+        }
+      } catch (error) {
+        console.error('Error fetching testimonials:', error);
+        // Keep existing static testimonials as fallback
       }
-    }
+    };
+    
+    fetchTestimonials();
   }, []);
 
   // Hero slider auto-advance
@@ -343,8 +386,12 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
   const getVisibleTestimonials = () => {
     // Use dynamic testimonials if available, otherwise fall back to static ones
     const testimonialsToUse = dynamicTestimonials.length > 0 ? dynamicTestimonials : testimonials;
+    
+    // If we have 3 or more testimonials, show 3. Otherwise, show all available
+    const maxToShow = Math.min(3, testimonialsToUse.length);
     const visible = [];
-    for (let i = 0; i < 3; i++) {
+    
+    for (let i = 0; i < maxToShow; i++) {
       const index = (currentTestimonial + i) % testimonialsToUse.length;
       visible.push(testimonialsToUse[index]);
     }
@@ -849,7 +896,13 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
           </div>
           
           {/* Testimonials Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          <div className={`grid gap-8 mb-12 ${
+            getVisibleTestimonials().length === 1 
+              ? 'grid-cols-1 max-w-2xl mx-auto' 
+              : getVisibleTestimonials().length === 2 
+                ? 'md:grid-cols-2 max-w-4xl mx-auto' 
+                : 'md:grid-cols-2 lg:grid-cols-3'
+          }`}>
             {getVisibleTestimonials().map((testimonial, index) => (
               <div 
                 key={`${currentTestimonial}-${index}`} 
@@ -881,12 +934,18 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
                 
                 {/* Author Info */}
                 <div className="flex items-center">
-                  <div className="w-12 h-12 rounded-full overflow-hidden mr-4 ring-2 ring-gray-200">
-                    <img 
-                      src={testimonial.avatar} 
-                      alt={testimonial.name}
-                      className="w-full h-full object-cover"
-                    />
+                  <div className="w-12 h-12 rounded-full mr-4 ring-2 ring-gray-200 bg-blue-600 flex items-center justify-center">
+                    {testimonial.initials ? (
+                      <span className="text-white font-bold text-lg">
+                        {testimonial.initials}
+                      </span>
+                    ) : (
+                      <img 
+                        src={testimonial.avatar} 
+                        alt={testimonial.name}
+                        className="w-full h-full object-cover rounded-full"
+                      />
+                    )}
                   </div>
                   <div>
                     <div className="font-semibold text-gray-900">{testimonial.name}</div>
@@ -953,7 +1012,7 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
             {/* Featured Accomplishments */}
             {featuredAccomplishments.length > 0 && (
               <div className="featured-accomplishments">
-                <h3 className="featured-title">Featured Achievements</h3>
+                <h3 className="featured-title">What We Want To Achievements</h3>
                 <div className="featured-grid">
                   {featuredAccomplishments.map((accomplishment) => {
                     const CategoryIcon = getCategoryIcon(accomplishment.category);
@@ -999,7 +1058,7 @@ export function LandingPage({ onGetStarted, onSignIn, onPostTask }: LandingPageP
 
             {/* All Recent Accomplishments */}
             <div className="all-accomplishments">
-              <h3 className="accomplishments-title">Recent Milestones</h3>
+              <h3 className="accomplishments-title">Our Milestones</h3>
               <div className="accomplishments-grid">
                 {recentAccomplishments.map((accomplishment) => {
                   const CategoryIcon = getCategoryIcon(accomplishment.category);

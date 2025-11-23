@@ -384,13 +384,13 @@ function AppContent() {
         return <HelpView />;
       
       case 'profile':
-        return <ProfileView user={user} onProfileUpdate={setUser} />;
+        return <ProfileView user={user} onProfileUpdate={setUser} onViewChange={handleViewChange} />;
       
       case 'settings':
         return <SettingsView user={user} />;
       
       case 'help-support':
-        return <HelpSupportView />;
+        return <HelpSupportView onViewChange={handleViewChange} />;
       
       case 'partnership-requests':
         return userRole === 'admin' ? <PartnershipRequestsView /> : null;

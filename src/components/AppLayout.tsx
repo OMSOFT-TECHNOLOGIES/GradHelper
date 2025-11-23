@@ -347,51 +347,101 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
                 userRole={userRole} 
               />
               
-              {/* User Profile Dropdown */}
+              {/* Professional User Profile Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center space-x-3 p-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors">
-                    <div className={`w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-white font-medium text-sm ${getInitialsColor(user?.name)}`}>
-                      {getUserInitials(user?.name)}
+                  <button className="flex items-center space-x-3 px-3 py-2 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md group">
+                    <div className="relative">
+                      <div className={`w-10 h-10 rounded-xl border-2 border-white shadow-sm flex items-center justify-center text-white font-semibold text-sm ${getInitialsColor(user?.name)} group-hover:shadow-md transition-shadow`}>
+                        {getUserInitials(user?.name)}
+                      </div>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-2 border-white rounded-full shadow-sm"></div>
                     </div>
-                    <div className="hidden md:block text-left">
-                      <p className="text-sm font-medium text-gray-900">{user?.name || 'User'}</p>
-                      <p className="text-xs text-gray-500 capitalize">{userRole}</p>
+                    <div className="hidden md:block text-left min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate max-w-32">{user?.name || 'User'}</p>
+                      <p className="text-xs text-gray-500 capitalize font-medium">{userRole} Account</p>
                     </div>
-                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                    <ChevronDown className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 shadow-lg border border-gray-200">
-                  <DropdownMenuLabel className="text-gray-700">My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => handleUserMenuAction('profile')}
-                    className="hover:bg-blue-50 hover:text-blue-700"
-                  >
-                    <User className="mr-3 h-4 w-4" />
-                    Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => handleUserMenuAction('settings')}
-                    className="hover:bg-blue-50 hover:text-blue-700"
-                  >
-                    <Settings className="mr-3 h-4 w-4" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => handleUserMenuAction('help')}
-                    className="hover:bg-blue-50 hover:text-blue-700"
-                  >
-                    <HelpCircle className="mr-3 h-4 w-4" />
-                    Help & Support
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                <DropdownMenuContent align="end" className="w-72 shadow-xl border border-gray-200 bg-white rounded-2xl p-2">
+                  {/* User Info Header */}
+                  <div className="px-4 py-4 mb-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                    <div className="flex items-center space-x-3">
+                      <div className="relative">
+                        <div className={`w-12 h-12 rounded-xl border-2 border-white shadow-md flex items-center justify-center text-white font-bold text-lg ${getInitialsColor(user?.name)}`}>
+                          {getUserInitials(user?.name)}
+                        </div>
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 border-2 border-white rounded-full"></div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base font-bold text-gray-900 truncate">{user?.name || 'User'}</p>
+                        <p className="text-sm text-gray-600 capitalize font-medium">{userRole} Account</p>
+                        <div className="flex items-center mt-1">
+                          <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                          <span className="text-xs text-green-600 font-semibold">Active Session</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="space-y-1">
+                    <DropdownMenuItem 
+                      onClick={() => handleUserMenuAction('profile')}
+                      className="flex items-center px-4 py-3 rounded-xl hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 cursor-pointer group"
+                    >
+                      <div className="w-10 h-10 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center mr-3 transition-colors">
+                        <User className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">My Profile</p>
+                        <p className="text-xs text-gray-500">Manage account details</p>
+                      </div>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem 
+                      onClick={() => handleUserMenuAction('settings')}
+                      className="flex items-center px-4 py-3 rounded-xl hover:bg-green-50 hover:text-green-700 transition-all duration-200 cursor-pointer group"
+                    >
+                      <div className="w-10 h-10 bg-green-100 group-hover:bg-green-200 rounded-xl flex items-center justify-center mr-3 transition-colors">
+                        <Settings className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">Settings</p>
+                        <p className="text-xs text-gray-500">Preferences & privacy</p>
+                      </div>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem 
+                      onClick={() => handleUserMenuAction('help')}
+                      className="flex items-center px-4 py-3 rounded-xl hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 cursor-pointer group"
+                    >
+                      <div className="w-10 h-10 bg-purple-100 group-hover:bg-purple-200 rounded-xl flex items-center justify-center mr-3 transition-colors">
+                        <HelpCircle className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-900">Help & Support</p>
+                        <p className="text-xs text-gray-500">Get assistance & guides</p>
+                      </div>
+                    </DropdownMenuItem>
+                  </div>
+
+                  {/* Separator */}
+                  <div className="my-2 border-t border-gray-200"></div>
+
+                  {/* Sign Out */}
                   <DropdownMenuItem 
                     onClick={() => handleUserMenuAction('signout')}
-                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                    className="flex items-center px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 hover:text-red-700 transition-all duration-200 cursor-pointer group"
                   >
-                    <LogOut className="mr-3 h-4 w-4" />
-                    Sign out
+                    <div className="w-10 h-10 bg-red-100 group-hover:bg-red-200 rounded-xl flex items-center justify-center mr-3 transition-colors">
+                      <LogOut className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold">Sign Out</p>
+                      <p className="text-xs text-red-500">End current session</p>
+                    </div>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

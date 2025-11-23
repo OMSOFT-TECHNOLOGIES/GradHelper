@@ -40,10 +40,5 @@ export const NOTIFICATION_SETTINGS = [
     description: 'Receive updates about new features and promotions',
     defaultChecked: false
   },
-  {
-    id: 'profileVisibility',
-    label: 'Profile Visibility', 
-    description: 'Allow other users to see your profile information',
-    defaultChecked: true
-  }
+
 ] as const;
