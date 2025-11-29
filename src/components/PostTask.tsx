@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -6,12 +6,17 @@ import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
-import { Upload, X, Plus, FileText } from 'lucide-react';
+import { Upload, X, Plus, FileText, AlertTriangle, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from "sonner";
 import { API_BASE_URL } from '../utils/api';
+import { notificationService } from '../services/notificationService';
 
-export function PostTask() {
+interface PostTaskProps {
+  onViewChange?: (view: string) => void;
+}
+
+export function PostTask({ onViewChange }: PostTaskProps) {
   const [formData, setFormData] = useState({
     title: '',
     type: '',
@@ -27,6 +32,9 @@ export function PostTask() {
 
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [profileComplete, setProfileComplete] = useState<boolean>(true);
+  const [missingFields, setMissingFields] = useState<string[]>([]);
+  const [checkingProfile, setCheckingProfile] = useState<boolean>(true);
 
   const taskTypes = [
     'Assignment',
@@ -51,6 +59,30 @@ export function PostTask() {
     'Professional'
   ];
 
+  // Check profile completeness on component mount
+  useEffect(() => {
+    const checkProfileCompleteness = async () => {
+      try {
+        const response = await notificationService.checkProfileCompleteness();
+        setProfileComplete(response.profile_complete);
+        setMissingFields(response.missing_fields || []);
+        
+        if (!response.profile_complete) {
+          toast.warning('Complete your profile to post tasks', {
+            description: `Missing: ${response.missing_fields?.join(', ')}`
+          });
+        }
+      } catch (error) {
+        console.error('Error checking profile completeness:', error);
+        toast.error('Unable to verify profile status');
+      } finally {
+        setCheckingProfile(false);
+      }
+    };
+
+    checkProfileCompleteness();
+  }, []);
+
   const subjects = [
     'Computer Science And Related Fields',
     'Engineering',
@@ -67,6 +99,18 @@ export function PostTask() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check profile completeness before allowing task submission
+    if (!profileComplete) {
+      toast.error('Complete your profile first', {
+        description: `Please complete these required fields: ${missingFields.join(', ')}`,
+        action: {
+          label: 'Complete Profile',
+          onClick: () => onViewChange && onViewChange('profile-completion')
+        }
+      });
+      return;
+    }
     
     // Validation
     if (!formData.title || !formData.type || !formData.description || !formData.deadline) {
@@ -304,6 +348,53 @@ export function PostTask() {
             Connect with expert academic professionals and get personalized assistance for your assignments, research papers, and projects
           </p>
         </div>
+
+        {/* Profile Completion Warning */}
+        {checkingProfile ? (
+          <Card className="border-yellow-200 bg-yellow-50">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-600"></div>
+                <span className="text-yellow-800">Checking profile completeness...</span>
+              </div>
+            </CardContent>
+          </Card>
+        ) : !profileComplete ? (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-start space-x-3">
+                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-red-800 font-semibold">Complete Your Profile First</h3>
+                  <p className="text-red-700 text-sm mt-1">
+                    You need to complete your profile before posting tasks. Missing: <strong>{missingFields.join(', ')}</strong>
+                  </p>
+                  <Button 
+                    onClick={() => onViewChange && onViewChange('profile-completion')}
+                    className="mt-3 bg-red-600 hover:bg-red-700 text-white text-sm"
+                    size="sm"
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Complete Profile
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-green-200 bg-green-50">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-5 h-5 bg-green-600 rounded-full flex items-center justify-center">
+                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <span className="text-green-800 font-medium">Profile Complete - Ready to Post Tasks</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="shadow-xl border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
@@ -586,12 +677,31 @@ export function PostTask() {
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button 
                   type="submit" 
-                  className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+                  disabled={!profileComplete || checkingProfile}
+                  className={`flex-1 h-12 font-semibold shadow-lg transition-all duration-200 ${
+                    !profileComplete || checkingProfile 
+                      ? 'bg-gray-400 cursor-not-allowed text-gray-600' 
+                      : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white hover:shadow-xl'
+                  }`}
                 >
-                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  Submit Task Request
+                  {checkingProfile ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                      Checking Profile...
+                    </>
+                  ) : !profileComplete ? (
+                    <>
+                      <AlertTriangle className="w-5 h-5 mr-2" />
+                      Complete Profile First
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      Submit Task Request
+                    </>
+                  )}
                 </Button>
                 <Button 
                   type="button" 

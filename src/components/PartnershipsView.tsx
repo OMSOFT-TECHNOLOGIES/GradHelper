@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { useNotifications } from './NotificationContext';
+import { useNotifications } from './NotificationContextAPI';
 import { PartnershipApiService } from '../services/partnershipApiService';
 import { API_BASE_URL } from '../utils/api';
 import QRCode from 'qrcode';
@@ -91,7 +91,7 @@ interface NotificationPayload {
   message: string;
   userId: string;
   userRole: 'student' | 'admin';
-  data: Record<string, unknown>;
+  metadata: Record<string, unknown>;
 }
 
 export function PartnershipsView({ user }: PartnershipsViewProps) {
@@ -142,7 +142,7 @@ export function PartnershipsView({ user }: PartnershipsViewProps) {
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/accounts/partner/dashboard`, {
+      const response = await fetch(`${API_BASE_URL}/accounts/partner/dashboard/`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -359,7 +359,7 @@ export function PartnershipsView({ user }: PartnershipsViewProps) {
         message: `Your application to become a school representative at ${applicationData.school} has been submitted for review. You will be notified once it has been reviewed.`,
         userId: user.id,
         userRole: 'student',
-        data: { 
+        metadata: { 
           applicationType: 'partnership',
           school: applicationData.school,
           referralCode: result.partnershipData?.referralCode || updatedPartnership.referralCode
@@ -398,7 +398,7 @@ export function PartnershipsView({ user }: PartnershipsViewProps) {
         message: errorMessage,
         userId: user.id,
         userRole: 'student',
-        data: { error: true, applicationType: 'partnership' }
+        metadata: { error: true, applicationType: 'partnership' }
       };
       
       addNotification(errorNotification);
@@ -416,7 +416,7 @@ export function PartnershipsView({ user }: PartnershipsViewProps) {
         message: 'Your referral code has been copied to clipboard.',
         userId: user.id,
         userRole: 'student',
-        data: {}
+        metadata: {}
       };
       addNotification(notification);
     } catch (err) {
@@ -443,7 +443,7 @@ export function PartnershipsView({ user }: PartnershipsViewProps) {
           message: 'Your referral link has been copied to clipboard.',
           userId: user.id,
           userRole: 'student',
-          data: {}
+          metadata: {}
         };
         addNotification(notification);
       }

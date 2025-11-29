@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNotifications } from './NotificationContext';
+import { useNotifications } from './NotificationContextAPI';
 import { UserCheck, AlertCircle, RefreshCw, Users, TrendingUp } from 'lucide-react';
 import { toast } from "sonner";
 import { FiltersSection } from './partnership/FiltersSection';
@@ -122,7 +122,7 @@ export function PartnershipRequestsView(): React.JSX.Element {
         message: `${request.userName}'s partnership application has been approved. They can now access referral tools.`,
         userId: request.userId,
         userRole: 'admin',
-        data: {
+        metadata: {
           school: request.school,
           referralCode: request.referralCode
         }
@@ -183,7 +183,7 @@ export function PartnershipRequestsView(): React.JSX.Element {
         message: `${request.userName}'s partnership application has been rejected.`,
         userId: request.userId,
         userRole: 'admin',
-        data: {
+        metadata: {
           reason: rejectionReason.trim()
         }
       });

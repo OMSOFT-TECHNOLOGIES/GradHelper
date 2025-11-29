@@ -57,6 +57,7 @@ interface Task {
   createdAt: string;
   updatedAt: string;
   budget: number;
+  task_number?: string;
   student: {
     id: string;
     name: string;
@@ -164,7 +165,7 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
   };
 
   const handleCopyTaskId = () => {
-    navigator.clipboard.writeText(task.id);
+    navigator.clipboard.writeText(task.task_number || "");
     toast.success('Task ID copied to clipboard');
   };
 
@@ -199,7 +200,7 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
       console.log(' TaskDetailModal: Fetching student info for ID:', task.student.id);
       
       // Make API call to fetch student profile by ID
-      const response = await fetch(`${API_BASE_URL}/auth/profile/${task.student.id}`, {
+      const response = await fetch(`${API_BASE_URL}/auth/profile/${task.student.id}/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -329,7 +330,14 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
                 <FileText className="w-7 h-7 text-white" />
               </div>
               <div className="text-white">
-                <h2 className="text-2xl font-bold mb-1">{task.title}</h2>
+                <div className="flex items-center space-x-3 mb-1">
+                  <h2 className="text-2xl font-bold">{task.title}</h2>
+                  {task.task_number && (
+                    <span className="px-3 py-1 text-sm font-medium bg-white/20 backdrop-blur-sm text-white border border-white/30 rounded-lg">
+                      {task.task_number}
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center space-x-4 text-sm text-white/80">
                   <span className="flex items-center">
                     <Hash className="w-4 h-4 mr-1" />
@@ -1020,24 +1028,262 @@ export function TaskDetailModal({ task, userRole, isOpen, onClose, onTaskUpdate 
                 <h3 className="text-lg font-semibold text-gray-800">Task Timeline</h3>
               </div>
 
-              <div className="space-y-4">
-                {mockTimeline.map((event, index) => (
-                  <div key={index} className="flex items-start space-x-4">
-                    <div className={`w-3 h-3 rounded-full mt-2 flex-shrink-0 ${
-                      event.type === 'created' ? 'bg-blue-500' :
-                      event.type === 'assigned' ? 'bg-yellow-500' :
-                      event.type === 'progress' ? 'bg-orange-500' :
-                      event.type === 'submission' ? 'bg-green-500' :
-                      'bg-gray-500'
-                    }`}></div>
-                    <div className="flex-1 bg-white border border-gray-200 rounded-lg p-4">
+              {/* Timeline Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                {/* Task Posted Date */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="p-2 bg-blue-200 rounded-lg">
+                      <Calendar className="w-4 h-4 text-blue-700" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-blue-900">Posted Date</h4>
+                  </div>
+                  <p className="text-lg font-bold text-blue-800">
+                    {new Date(task.createdAt).toLocaleDateString()}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {new Date(task.createdAt).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </p>
+                </div>
+
+                {/* Due Date */}
+                <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="p-2 bg-orange-200 rounded-lg">
+                      <Clock className="w-4 h-4 text-orange-700" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-orange-900">Due Date</h4>
+                  </div>
+                  <p className="text-lg font-bold text-orange-800">
+                    {new Date(task.dueDate).toLocaleDateString()}
+                  </p>
+                  <p className="text-xs text-orange-600 mt-1">
+                    {new Date(task.dueDate).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })}
+                  </p>
+                </div>
+
+                {/* Days Involved (Total duration) */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className="p-2 bg-purple-200 rounded-lg">
+                      <BarChart3 className="w-4 h-4 text-purple-700" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-purple-900">Total Duration</h4>
+                  </div>
+                  <p className="text-lg font-bold text-purple-800">
+                    {Math.ceil((new Date(task.dueDate).getTime() - new Date(task.createdAt).getTime()) / (1000 * 60 * 60 * 24))} days
+                  </p>
+                  <p className="text-xs text-purple-600 mt-1">Project timeline</p>
+                </div>
+
+                {/* Days Remaining */}
+                <div className={`bg-gradient-to-br rounded-xl p-4 border ${
+                  Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 7
+                    ? 'from-green-50 to-green-100 border-green-200'
+                    : Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0
+                    ? 'from-yellow-50 to-yellow-100 border-yellow-200'
+                    : 'from-red-50 to-red-100 border-red-200'
+                }`}>
+                  <div className="flex items-center space-x-3 mb-2">
+                    <div className={`p-2 rounded-lg ${
+                      Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 7
+                        ? 'bg-green-200'
+                        : Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0
+                        ? 'bg-yellow-200'
+                        : 'bg-red-200'
+                    }`}>
+                      <AlertCircle className={`w-4 h-4 ${
+                        Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 7
+                          ? 'text-green-700'
+                          : Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0
+                          ? 'text-yellow-700'
+                          : 'text-red-700'
+                      }`} />
+                    </div>
+                    <h4 className={`text-sm font-semibold ${
+                      Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 7
+                        ? 'text-green-900'
+                        : Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0
+                        ? 'text-yellow-900'
+                        : 'text-red-900'
+                    }`}>Days Remaining</h4>
+                  </div>
+                  <p className={`text-lg font-bold ${
+                    Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 7
+                      ? 'text-green-800'
+                      : Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0
+                      ? 'text-yellow-800'
+                      : 'text-red-800'
+                  }`}>
+                    {(() => {
+                      const daysRemaining = Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                      return daysRemaining > 0 ? `${daysRemaining} days` : daysRemaining === 0 ? 'Due today' : 'Overdue';
+                    })()}
+                  </p>
+                  <p className={`text-xs mt-1 ${
+                    Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 7
+                      ? 'text-green-600'
+                      : Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0
+                      ? 'text-yellow-600'
+                      : 'text-red-600'
+                  }`}>
+                    {Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 7
+                      ? 'On schedule'
+                      : Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0
+                      ? 'Approaching deadline'
+                      : 'Action required'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* Timeline Progress Bar */}
+              <div className="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+                <h4 className="font-semibold text-gray-800 mb-4">Timeline Progress</h4>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>Task Posted</span>
+                    <span>Due Date</span>
+                  </div>
+                  <div className="relative">
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div 
+                        className={`h-3 rounded-full transition-all duration-500 ${
+                          task.status === 'completed' ? 'bg-green-500' :
+                          Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 7 ? 'bg-blue-500' :
+                          Math.ceil((new Date(task.dueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) > 0 ? 'bg-yellow-500' :
+                          'bg-red-500'
+                        }`}
+                        style={{
+                          width: `${Math.min(100, Math.max(0, 
+                            ((new Date().getTime() - new Date(task.createdAt).getTime()) / 
+                            (new Date(task.dueDate).getTime() - new Date(task.createdAt).getTime())) * 100
+                          ))}%`
+                        }}
+                      ></div>
+                    </div>
+                    <div 
+                      className="absolute -top-1 w-4 h-4 bg-white border-2 border-blue-500 rounded-full shadow-sm"
+                      style={{
+                        left: `${Math.min(96, Math.max(0, 
+                          ((new Date().getTime() - new Date(task.createdAt).getTime()) / 
+                          (new Date(task.dueDate).getTime() - new Date(task.createdAt).getTime())) * 100
+                        ))}%`
+                      }}
+                    ></div>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{new Date(task.createdAt).toLocaleDateString()}</span>
+                    <span className="text-center">
+                      {Math.round(((new Date().getTime() - new Date(task.createdAt).getTime()) / 
+                        (new Date(task.dueDate).getTime() - new Date(task.createdAt).getTime())) * 100)}% elapsed
+                    </span>
+                    <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Task History Timeline */}
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <h4 className="font-semibold text-gray-800 mb-4">Task History</h4>
+                <div className="space-y-4">
+                  {/* Task Created */}
+                  <div className="flex items-start space-x-4">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full mt-2 flex-shrink-0"></div>
+                    <div className="flex-1 bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <div className="flex items-center justify-between">
-                        <p className="font-medium text-gray-800">{event.event}</p>
-                        <span className="text-sm text-gray-500">{new Date(event.date).toLocaleDateString()}</span>
+                        <p className="font-medium text-blue-900">Task Posted</p>
+                        <span className="text-sm text-blue-600">{new Date(task.createdAt).toLocaleDateString()}</span>
                       </div>
+                      <p className="text-sm text-blue-700 mt-1">Task "{task.title}" was created by {task.student.name}</p>
                     </div>
                   </div>
-                ))}
+
+                  {/* Current Status */}
+                  <div className="flex items-start space-x-4">
+                    <div className={`w-3 h-3 rounded-full mt-2 flex-shrink-0 ${
+                      task.status === 'completed' ? 'bg-green-500' :
+                      task.status === 'in_progress' ? 'bg-yellow-500' :
+                      task.status === 'pending' ? 'bg-gray-500' :
+                      'bg-red-500'
+                    }`}></div>
+                    <div className={`flex-1 border rounded-lg p-4 ${
+                      task.status === 'completed' ? 'bg-green-50 border-green-200' :
+                      task.status === 'in_progress' ? 'bg-yellow-50 border-yellow-200' :
+                      task.status === 'pending' ? 'bg-gray-50 border-gray-200' :
+                      'bg-red-50 border-red-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className={`font-medium ${
+                          task.status === 'completed' ? 'text-green-900' :
+                          task.status === 'in_progress' ? 'text-yellow-900' :
+                          task.status === 'pending' ? 'text-gray-900' :
+                          'text-red-900'
+                        }`}>
+                          Current Status: {task.status.replace('_', ' ').toUpperCase()}
+                        </p>
+                        <span className={`text-sm ${
+                          task.status === 'completed' ? 'text-green-600' :
+                          task.status === 'in_progress' ? 'text-yellow-600' :
+                          task.status === 'pending' ? 'text-gray-600' :
+                          'text-red-600'
+                        }`}>{new Date(task.updatedAt).toLocaleDateString()}</span>
+                      </div>
+                      <p className={`text-sm mt-1 ${
+                        task.status === 'completed' ? 'text-green-700' :
+                        task.status === 'in_progress' ? 'text-yellow-700' :
+                        task.status === 'pending' ? 'text-gray-700' :
+                        'text-red-700'
+                      }`}>
+                        Last updated on {new Date(task.updatedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Due Date Milestone */}
+                  <div className="flex items-start space-x-4">
+                    <div className={`w-3 h-3 rounded-full mt-2 flex-shrink-0 ${
+                      new Date(task.dueDate).getTime() > new Date().getTime() ? 'bg-orange-500' : 
+                      task.status === 'completed' ? 'bg-green-500' : 'bg-red-500'
+                    }`}></div>
+                    <div className={`flex-1 border rounded-lg p-4 ${
+                      new Date(task.dueDate).getTime() > new Date().getTime() ? 'bg-orange-50 border-orange-200' : 
+                      task.status === 'completed' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <p className={`font-medium ${
+                          new Date(task.dueDate).getTime() > new Date().getTime() ? 'text-orange-900' : 
+                          task.status === 'completed' ? 'text-green-900' : 'text-red-900'
+                        }`}>
+                          Due Date {new Date(task.dueDate).getTime() < new Date().getTime() && task.status !== 'completed' ? '(Overdue)' : ''}
+                        </p>
+                        <span className={`text-sm ${
+                          new Date(task.dueDate).getTime() > new Date().getTime() ? 'text-orange-600' : 
+                          task.status === 'completed' ? 'text-green-600' : 'text-red-600'
+                        }`}>{new Date(task.dueDate).toLocaleDateString()}</span>
+                      </div>
+                      <p className={`text-sm mt-1 ${
+                        new Date(task.dueDate).getTime() > new Date().getTime() ? 'text-orange-700' : 
+                        task.status === 'completed' ? 'text-green-700' : 'text-red-700'
+                      }`}>
+                        Task deadline on {new Date(task.dueDate).toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

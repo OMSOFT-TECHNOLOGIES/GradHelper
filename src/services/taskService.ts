@@ -47,6 +47,9 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   budget: number;
+  bill_amount?: number;
+  payment_status?: 'pending' | 'paid' | 'failed' | 'cancelled';
+  task_number?: string;
   student: {
     id: string;
     name: string;
@@ -219,7 +222,7 @@ class TaskService {
     });
 
     const queryString = searchParams.toString();
-    const endpoint = `/tasks${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `/tasks/${queryString ? `?${queryString}` : ''}`;
 
     try {
       const response = await this.makeRequest<TasksResponse>(endpoint);
@@ -245,7 +248,7 @@ class TaskService {
     });
 
     const queryString = searchParams.toString();
-    const endpoint = `/admin/tasks${queryString ? `?${queryString}` : ''}`;
+    const endpoint = `/admin/tasks/${queryString ? `?${queryString}` : ''}`;
 
     try {
       const response = await this.makeRequest<AdminTasksResponse>(endpoint);
@@ -262,7 +265,7 @@ class TaskService {
    */
   async getTaskById(taskId: string): Promise<{ success: boolean; data: Task }> {
     try {
-      const response = await this.makeRequest<{ success: boolean; data: Task }>(`/tasks/${taskId}`);
+      const response = await this.makeRequest<{ success: boolean; data: Task }>(`/tasks/${taskId}/`);
       return response;
     } catch (error) {
       console.error(`Error fetching task ${taskId}:`, error);
@@ -276,7 +279,7 @@ class TaskService {
    */
   async createTask(taskData: Partial<Task>): Promise<{ success: boolean; data: Task }> {
     try {
-      const response = await this.makeRequest<{ success: boolean; data: Task }>('/tasks', {
+      const response = await this.makeRequest<{ success: boolean; data: Task }>('/tasks/', {
         method: 'POST',
         body: JSON.stringify(taskData),
       });
@@ -316,7 +319,7 @@ class TaskService {
     feedback?: string
   ): Promise<{ success: boolean; data: Task }> {
     try {
-      const response = await this.makeRequest<{ success: boolean; data: Task }>(`/tasks/${taskId}/status`, {
+      const response = await this.makeRequest<{ success: boolean; data: Task }>(`/tasks/${taskId}/status/`, {
         method: 'PUT',
         body: JSON.stringify({ status, reason, feedback }),
       });
@@ -404,7 +407,7 @@ class TaskService {
    */
   async assignTask(taskId: string, adminId: string): Promise<{ success: boolean; data: Task }> {
     try {
-      const response = await this.makeRequest<{ success: boolean; data: Task }>(`/tasks/${taskId}/assign`, {
+      const response = await this.makeRequest<{ success: boolean; data: Task }>(`/tasks/${taskId}/assign/`, {
         method: 'POST',
         body: JSON.stringify({ adminId }),
       });
@@ -421,7 +424,7 @@ class TaskService {
    */
   async getTaskDeliverables(taskId: string): Promise<{ success: boolean; data: Deliverable[] }> {
     try {
-      const response = await this.makeRequest<{ success: boolean; data: Deliverable[] }>(`/tasks/${taskId}/deliverables`);
+      const response = await this.makeRequest<{ success: boolean; data: Deliverable[] }>(`/tasks/${taskId}/deliverables/`);
       return response;
     } catch (error) {
       console.error(`Error fetching deliverables for task ${taskId}:`, error);
@@ -433,10 +436,11 @@ class TaskService {
    * Get all deliverables for the current user
    * GET /deliverables (or /users/me/deliverables)
    */
-  async getUserDeliverables(): Promise<{ success: boolean; data: Deliverable[] }> {
+  async getUserDeliverables(): Promise<{ success: boolean; data: Deliverable[]; pagination?: { page: number; limit: number; total: number } }> {
     try {
-      // Assuming the backend has an endpoint to get deliverables for the authenticated user
-      const response = await this.makeRequest<{ success: boolean; data: Deliverable[] }>(`/deliverables`);
+      // The backend endpoint returns deliverables for the authenticated user with pagination
+      const response = await this.makeRequest<{ success: boolean; data: Deliverable[]; pagination: { page: number; limit: number; total: number } }>(`/deliverables/`);
+      console.log('Fetched user deliverables:', response);
       return response;
     } catch (error) {
       console.error('Error fetching user deliverables:', error);
@@ -570,7 +574,7 @@ class TaskService {
         // Remove Content-Type for FormData - browser sets it with boundary
         const { 'Content-Type': _, ...headersWithoutContentType } = headers as any;
 
-        const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/deliverables`, {
+        const response = await fetch(`${API_BASE_URL}/tasks/${taskId}/deliverables/`, {
           method: 'POST',
           headers: headersWithoutContentType,
           body: formData,
@@ -707,22 +711,25 @@ export function transformTaskData(backendTask: any): Task {
     status: backendTask.status,
     priority: backendTask.priority || 'medium',
     dueDate: backendTask.deadline || backendTask.dueDate,
-    createdAt: backendTask.createdAt,
-    updatedAt: backendTask.updatedAt,
+    createdAt: backendTask.created_at || backendTask.createdAt,
+    updatedAt: backendTask.updated_at || backendTask.updatedAt,
     budget: backendTask.budget || 0,
+    bill_amount: backendTask.bill_amount,
+    payment_status: backendTask.payment_status,
+    task_number: backendTask.task_number,
     student: {
       id: backendTask.student?.id || backendTask.studentId,
-      name: backendTask.student?.name || 'Unknown Student',
+      name: backendTask.student?.username || backendTask.student?.name || 'Unknown Student',
       email: backendTask.student?.email || '',
     },
     assignedAdmin: backendTask.assignedAdmin ? {
       id: backendTask.assignedAdmin.id,
-      name: backendTask.assignedAdmin.name,
+      name: backendTask.assignedAdmin.username || backendTask.assignedAdmin.name,
     } : undefined,
     deliverables: parsedDeliverables,
-    attachments: backendTask.attachments || [],
+    attachments: backendTask.attached_files || backendTask.attachments || [],
     type: backendTask.type,
-    academicLevel: backendTask.academicLevel,
+    academicLevel: backendTask.academic_level || backendTask.academicLevel,
     pages: backendTask.pages,
     requirements: backendTask.requirements,
     citations: backendTask.citations,

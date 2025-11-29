@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNotifications } from './NotificationContext';
+import { useNotifications } from './NotificationContextAPI';
 import { 
   CheckSquare, 
   Edit3, 
@@ -221,7 +221,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
         message: notificationMessage,
         userId: deliverable.studentId,
         userRole: 'student',
-        data: { deliverableId: deliverable.id, taskId: deliverable.taskId }
+        metadata: { deliverableId: deliverable.id, taskId: deliverable.taskId }
       });
 
       // Also notify admin if it's a status change
@@ -232,7 +232,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
           message: `You updated "${deliverable.title}" status to ${status.replace('_', ' ')}.`,
           userId: user.id,
           userRole: 'admin',
-          data: { deliverableId: deliverable.id, taskId: deliverable.taskId }
+          metadata: { deliverableId: deliverable.id, taskId: deliverable.taskId }
         });
       }
 
@@ -992,7 +992,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
           message: `"${editForm.title}" has been updated successfully.`,
           userId: user.id,
           userRole: userRole,
-          data: { deliverableId: selectedDeliverable.id }
+          metadata: { deliverableId: selectedDeliverable.id }
         });
       } else {
         // Handle API errors with detailed information (like PostTask)
@@ -1075,7 +1075,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
           message: `"${deliverable.title}" status changed to ${newStatus.replace('_', ' ')}.`,
           userId: deliverable.task_info?.student.id || user.id,
           userRole: 'student',
-          data: { deliverableId: deliverable.id, newStatus }
+          metadata: { deliverableId: deliverable.id, newStatus }
         });
       }
     } catch (error) {
@@ -1117,7 +1117,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
           message: `Your deliverable "${deliverable.title}" has been approved!`,
           userId: deliverable.task_info?.student.id || user.id,
           userRole: 'student',
-          data: { deliverableId: deliverable.id, approved: true }
+          metadata: { deliverableId: deliverable.id, approved: true }
         });
       }
     } catch (error) {
@@ -1158,7 +1158,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
           message: `Your deliverable "${deliverable.title}" needs revision. Please check the feedback.`,
           userId: deliverable.task_info?.student.id || user.id,
           userRole: 'student',
-          data: { deliverableId: deliverable.id, approved: false }
+          metadata: { deliverableId: deliverable.id, approved: false }
         });
       }
     } catch (error) {
@@ -1300,7 +1300,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
           message: `"${selectedDeliverable.title}" has been deleted.`,
           userId: user.id,
           userRole: userRole,
-          data: { deliverableId: selectedDeliverable.id }
+          metadata: { deliverableId: selectedDeliverable.id }
         });
       } else {
         // Handle API errors with detailed information
@@ -1342,12 +1342,12 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
   };
 
   // Filter deliverables based on search and status
-  const filteredDeliverables = deliverables.filter(deliverable => {
+  const filteredDeliverables = (deliverables || []).filter(deliverable => {
     const matchesSearch = searchTerm === '' || 
-      deliverable.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      deliverable.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       deliverable.task_title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       deliverable.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (userRole === 'admin' && deliverable.task_info?.student.username.toLowerCase().includes(searchTerm.toLowerCase()));
+      (userRole === 'admin' && deliverable.task_info?.student?.username?.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesStatus = statusFilter === 'all' || deliverable.status === statusFilter;
     
@@ -1580,7 +1580,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
               </div>
               <h3 className="text-2xl font-bold text-slate-900 mb-4">No deliverables found</h3>
               <p className="text-slate-600 max-w-md leading-relaxed mb-6">
-                {deliverables.length === 0 ? (
+                {(deliverables || []).length === 0 ? (
                   userRole === 'student' 
                     ? 'You haven\'t created any deliverables yet. Create tasks and add deliverables to get started on your journey!'
                     : 'No deliverables have been assigned to you for review yet. Students will submit their work here.'
@@ -2253,7 +2253,7 @@ export function DeliverablesView({ userRole, user }: DeliverablesViewProps) {
           </div>
           
           {(() => {
-            const currentItem = filteredDeliverables.find(item => item.id.toString() === openMenuId);
+            const currentItem = (filteredDeliverables || []).find(item => item.id.toString() === openMenuId);
             if (!currentItem) return null;
 
             return (

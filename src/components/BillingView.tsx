@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useNotifications } from './NotificationContext';
+import { useNotifications } from './NotificationContextAPI';
 import { CreateBillModal } from './CreateBillModal';
+import { taskService, Task } from '../services/taskService';
 import { MockPaymentForm } from './MockPaymentForm';
 import { StripePaymentModal } from './StripePaymentForm';
 import { SimplePaymentModal } from './SimplePaymentForm';
@@ -69,7 +70,36 @@ export function BillingView({ userRole, user }: BillingViewProps) {
   const [editingBill, setEditingBill] = useState<Partial<Bill>>({});
   const [operationLoading, setOperationLoading] = useState(false);
   
-  const [availableTasks, setAvailableTasks] = useState([]);
+  const [availableTasks, setAvailableTasks] = useState<Task[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+
+  // Load all tasks for admin
+  const loadAvailableTasks = async () => {
+    if (userRole !== 'admin') return;
+    
+    try {
+      setLoadingTasks(true);
+      const response = await taskService.getAdminTasks({
+        page: 1,
+        limit: 1000 // Get all tasks
+      });
+      
+      if (response.success) {
+        setAvailableTasks(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading available tasks:', error);
+      addNotification({
+        type: 'error',
+        title: 'Error Loading Tasks',
+        message: 'Failed to load available tasks. Please try again.',
+        userId: user?.id || 'admin',
+        userRole: userRole
+      });
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [showPartialPayment, setShowPartialPayment] = useState(false);
@@ -198,6 +228,7 @@ export function BillingView({ userRole, user }: BillingViewProps) {
   useEffect(() => {
     if (userRole) {
       fetchBills();
+      loadAvailableTasks();
     }
   }, [userRole]);
 
@@ -232,6 +263,7 @@ export function BillingView({ userRole, user }: BillingViewProps) {
         type: 'payment_received',
         title: 'Payment Processed',
         message: 'Your payment has been successfully processed.',
+        priority: 'medium',
         userId: user.id,
         userRole: 'student'
       });
@@ -587,6 +619,75 @@ export function BillingView({ userRole, user }: BillingViewProps) {
 
   const handleCreateBill = async (billData: any) => {
     try {
+      const token = localStorage.getItem('gradhelper_token');
+      const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+      
+      // Use the same structure as TaskManagement
+      const requestData = {
+        taskId: billData.taskId,
+        studentId: billData.studentId,
+        description: billData.description,
+        status: 'pending',
+        dueDate: billData.dueDate,
+        notes: billData.notes || 'Payment terms and conditions',
+        student: billData.student,
+        amount: billData.amount.toString(),
+        taskTitle: billData.taskTitle
+      };
+      
+      // Use the same API endpoint as TaskManagement
+      const response = await fetch(`${API_BASE_URL}/admin/bills/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      let result;
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        result = await response.json();
+      } else {
+        const htmlText = await response.text();
+        console.error('Server returned HTML instead of JSON:', htmlText);
+        result = { 
+          error: 'Server error - received HTML response instead of JSON',
+          html_content: htmlText.substring(0, 200) + '...'
+        };
+      }
+      
+      console.log('Bill Creation API Response:', response.status, result);
+
+      if (!response.ok) {
+        console.error('API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: result
+        });
+        
+        let errorMessage = 'Failed to create bill';
+        
+        if (result.detail) {
+          errorMessage = result.detail;
+        } else if (result.message) {
+          errorMessage = result.message;
+        } else if (result.error) {
+          errorMessage = result.error;
+        } else if (typeof result === 'object') {
+          const fieldErrors = Object.entries(result)
+            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+            .join('; ');
+          if (fieldErrors) errorMessage = fieldErrors;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const createdBill = result;
+      
       // Send notification to student
       addNotification({
         type: 'payment_received',
@@ -594,7 +695,7 @@ export function BillingView({ userRole, user }: BillingViewProps) {
         message: `A new bill of ${formatAmount(billData.amount)} has been created for "${billData.taskTitle}".`,
         userId: billData.studentId,
         userRole: 'student',
-        data: { billId: billData.id, taskId: billData.taskId }
+        metadata: { billId: createdBill.id, taskId: billData.taskId }
       });
 
       setShowBillModal(false);
@@ -603,12 +704,12 @@ export function BillingView({ userRole, user }: BillingViewProps) {
       await fetchBills();
       
       toast.success('Bill created successfully', {
-        description: `Bill for "${billData.taskTitle}" has been created.`
+        description: `Bill for "${billData.taskTitle}" has been created and saved to database.`
       });
     } catch (error) {
-      console.error('Error after bill creation:', error);
-      toast.error('Bill created but failed to refresh list', {
-        description: 'Please refresh the page to see the latest bills.'
+      console.error('Error creating bill:', error);
+      toast.error('Failed to create bill', {
+        description: error instanceof Error ? error.message : 'Please try again or contact support.'
       });
     }
   };
@@ -1237,7 +1338,7 @@ export function BillingView({ userRole, user }: BillingViewProps) {
                   {userRole === 'admin' && (
                     <div className="flex items-center space-x-2 text-sm text-slate-600 mb-3">
                       <User className="w-4 h-4" />
-                      <span>{bill.student}</span>
+                      <span>{typeof bill.student === 'string' ? bill.student : (bill.student as any)?.name || 'Unknown Student'}</span>
                     </div>
                   )}
                   
@@ -1455,7 +1556,7 @@ export function BillingView({ userRole, user }: BillingViewProps) {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-600">Student</label>
-                  <p className="text-lg font-semibold text-slate-900">{selectedBillForAction.student}</p>
+                  <p className="text-lg font-semibold text-slate-900">{typeof selectedBillForAction.student === 'string' ? selectedBillForAction.student : (selectedBillForAction.student as any)?.name || 'Unknown Student'}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-600">Due Date</label>

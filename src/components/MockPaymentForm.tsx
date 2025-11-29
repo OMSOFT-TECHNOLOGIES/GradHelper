@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNotifications } from './NotificationContext';
+import { useNotifications } from './NotificationContextAPI';
 import { 
   CreditCard, 
   Lock, 

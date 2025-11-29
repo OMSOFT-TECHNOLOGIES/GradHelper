@@ -415,7 +415,7 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
                       </h4>
                       <div className="flex items-center space-x-6 mb-4">
                         <p className="text-sm text-gray-600 font-medium">
-                          <span className="font-semibold text-gray-800">Student:</span> {task.student}
+                          <span className="font-semibold text-gray-800">Student:</span> {typeof task.student === 'string' ? task.student : (task.student as any)?.name || (task.student as any)?.username || 'Unknown Student'}
                         </p>
                         <span className="text-sm text-gray-600 font-medium">
                           <span className="font-semibold text-gray-800">Type:</span> {task.type}
@@ -450,7 +450,7 @@ export function AdminDashboard({ onViewChange }: AdminDashboardProps) {
                       Review
                     </button>
                     <button 
-                      onClick={() => handleTaskApproval(task.title, task.student)}
+                      onClick={() => handleTaskApproval(task.title, typeof task.student === 'string' ? task.student : (task.student as any)?.name || (task.student as any)?.username || 'Unknown Student')}
                       className="px-4 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
                     >
                       Approve
@@ -1293,7 +1293,7 @@ function AddBillModal({ task, onClose, onAdd }: {
           <div className="modal-content">
             <div className="space-y-4">
               <div>
-                <label className="form-label">Student: {task.student}</label>
+                <label className="form-label">Student: {typeof task.student === 'string' ? task.student : (task.student as any)?.name || (task.student as any)?.username || 'Unknown Student'}</label>
                 <label className="form-label">Project: {task.title}</label>
               </div>
 

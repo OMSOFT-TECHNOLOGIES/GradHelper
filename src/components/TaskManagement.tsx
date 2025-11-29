@@ -470,7 +470,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
 
   const handleContactStudent = (task: Task) => {
     toast.info('Opening messaging system...', {
-      description: `Starting conversation with ${task.student}`
+      description: `Starting conversation with ${typeof task.student === 'string' ? task.student : task.student?.name || 'the student'}`
     });
     setOpenMenuId(null);
   };
@@ -1685,16 +1685,33 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                            <CheckCircle className="w-5 h-5" />}
                         </div>
                         <div>
-                          <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-700 transition-colors duration-200">
-                            {task.title}
-                          </h3>
-                          <div className="flex items-center space-x-3 mt-1">
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-700 transition-colors duration-200">
+                              {task.title}
+                            </h3>
+                            {task.task_number && (
+                              <span className="px-2 py-1 text-xs font-medium bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 rounded-md border border-blue-300">
+                                {task.task_number}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-3 mt-1 flex-wrap gap-1">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(task.status)}`}>
                               {task.status.replace('_', ' ').toUpperCase()}
                             </span>
                             <span className={`text-sm font-medium ${getPriorityColor(task.priority)}`}>
                               {task.priority.toUpperCase()} PRIORITY
                             </span>
+                            {task.payment_status && (
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
+                                task.payment_status === 'paid' ? 'bg-green-100 text-green-800' :
+                                task.payment_status === 'pending' ? 'bg-orange-100 text-orange-800' :
+                                task.payment_status === 'failed' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                💳 {task.payment_status.toUpperCase()}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1702,7 +1719,7 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                       <p className="text-slate-600 text-base leading-relaxed mb-4">{task.description}</p>
                       
                       {/* Enhanced Meta Information */}
-                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
                         <div className="flex items-center space-x-2 text-slate-600">
                           <Calendar className="w-4 h-4 text-blue-500" />
                           <span className="text-sm font-medium">Due: {new Date(task.dueDate).toLocaleDateString()}</span>
@@ -1719,8 +1736,27 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                         )}
                         <div className="flex items-center space-x-2 text-slate-600">
                           <DollarSign className="w-4 h-4 text-emerald-500" />
-                          <span className="text-sm font-medium">${task.budget}</span>
+                          <span className="text-sm font-medium">Budget: ${task.budget}</span>
                         </div>
+                        {task.bill_amount && (
+                          <div className="flex items-center space-x-2 text-slate-600">
+                            <Receipt className="w-4 h-4 text-orange-500" />
+                            <span className="text-sm font-medium">Billed: ${task.bill_amount}</span>
+                          </div>
+                        )}
+                        {task.payment_status && (
+                          <div className="flex items-center space-x-2 text-slate-600">
+                            <CreditCard className="w-4 h-4 text-indigo-500" />
+                            <span className={`text-sm font-medium ${
+                              task.payment_status === 'paid' ? 'text-green-600' :
+                              task.payment_status === 'pending' ? 'text-orange-600' :
+                              task.payment_status === 'failed' ? 'text-red-600' :
+                              'text-slate-600'
+                            }`}>
+                              Payment: {task.payment_status.charAt(0).toUpperCase() + task.payment_status.slice(1)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -2397,9 +2433,11 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
                   <div className="flex-1 min-w-0">
                     <h4 className="text-sm font-medium text-slate-900">{deletingTask.title}</h4>
                     <p className="text-sm text-slate-600 mt-1">{deletingTask.subject}</p>
-                    <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500">
+                    <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500 flex-wrap">
                       <span>Due: {new Date(deletingTask.dueDate).toLocaleDateString()}</span>
-                      <span>${deletingTask.budget}</span>
+                      <span>Budget: ${deletingTask.budget}</span>
+                      {deletingTask.bill_amount && <span>Billed: ${deletingTask.bill_amount}</span>}
+                      {deletingTask.payment_status && <span>Payment: {deletingTask.payment_status}</span>}
                       <span>{deletingTask.deliverables?.length || 0} deliverables</span>
                     </div>
                   </div>
@@ -2622,9 +2660,20 @@ export function TaskManagement({ userRole }: TaskManagementProps) {
             <div className="mb-4 p-3 bg-slate-50 rounded-lg">
               <h4 className="font-medium text-slate-900">{billingTask.title}</h4>
               <p className="text-sm text-slate-600 mt-1">{billingTask.description}</p>
-              <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500">
+              <div className="flex items-center space-x-4 mt-2 text-xs text-slate-500 flex-wrap">
                 <span>Client: {billingTask.student.name}</span>
                 <span>Status: {billingTask.status}</span>
+                {billingTask.bill_amount && <span>Current Bill: ${billingTask.bill_amount}</span>}
+                {billingTask.payment_status && (
+                  <span className={`${
+                    billingTask.payment_status === 'paid' ? 'text-green-600' :
+                    billingTask.payment_status === 'pending' ? 'text-orange-600' :
+                    billingTask.payment_status === 'failed' ? 'text-red-600' :
+                    'text-slate-500'
+                  }`}>
+                    Payment: {billingTask.payment_status}
+                  </span>
+                )}
               </div>
             </div>
 

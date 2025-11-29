@@ -21,7 +21,9 @@ import { SettingsView } from './components/SettingsView';
 import { HelpSupportView } from './components/HelpSupportView';
 import { PartnershipRequestsView } from './components/PartnershipRequestsView';
 import { AccomplishmentsView } from './components/AccomplishmentsView';
-import { NotificationProvider } from './components/NotificationContext';
+import { NotificationProvider } from './components/NotificationContextAPI';
+import NotificationsPanel from './components/NotificationsPanel';
+import AdminNotificationManager from './components/AdminNotificationManager';
 import { StripeProvider } from './components/StripeProvider';
 import { Toaster } from './components/ui/sonner';
 import { toast } from "sonner";
@@ -327,6 +329,15 @@ function AppContent() {
       return;
     }
 
+    // Handle profile completion view
+    if (view === 'profile-completion') {
+      setAppState('profile');
+      toast.info('Complete your profile', {
+        description: 'Please provide some basic information to help us serve you better.'
+      });
+      return;
+    }
+
     // Check if user needs to complete profile for task posting
     if (user && view === 'post-task' && !user.profile?.isComplete) {
       setCurrentView(view);
@@ -350,7 +361,7 @@ function AppContent() {
           : <AdminDashboard onViewChange={handleViewChange} />;
       
       case 'post-task':
-        return <PostTask />;
+        return <PostTask onViewChange={handleViewChange} />;
       
       case 'my-tasks':
       case 'all-tasks':
@@ -397,6 +408,12 @@ function AppContent() {
       
       case 'accomplishments':
         return userRole === 'admin' ? <AccomplishmentsView /> : null;
+      
+      case 'notifications':
+        return <NotificationsPanel onViewChange={handleViewChange} />;
+      
+      case 'notification-manager':
+        return <AdminNotificationManager userRole={userRole} />;
         
       default:
         return userRole === 'student' 

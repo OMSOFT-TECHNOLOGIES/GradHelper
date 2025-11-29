@@ -5,7 +5,7 @@ import {
   PaymentElement,
   AddressElement
 } from '@stripe/react-stripe-js';
-import { useNotifications } from './NotificationContext';
+import { useNotifications } from './NotificationContextAPI';
 import { 
   CreditCard, 
   Lock, 

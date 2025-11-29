@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNotifications } from './NotificationContext';
+import { useNotifications } from './NotificationContextAPI';
 import { UserCheck, AlertCircle, RefreshCw, Users, TrendingUp } from 'lucide-react';
 import { toast } from "sonner";
 import { FiltersSection } from './partnership/FiltersSection';
@@ -95,7 +95,7 @@ export function PartnershipRequestsViewWithApi(): React.JSX.Element {
         message: `${request.userName} from ${request.school} is now a TheGradHelper partner.`,
         userId: request.userId,
         userRole: 'student',
-        data: { 
+        metadata: { 
           type: NotificationTypeEnum.PARTNERSHIP_APPROVED,
           school: request.school,
           referralCode: request.referralCode
@@ -146,7 +146,7 @@ export function PartnershipRequestsViewWithApi(): React.JSX.Element {
         message: `Your partnership application for ${request.school} has been reviewed. Please check your partnership page for details.`,
         userId: request.userId,
         userRole: 'student',
-        data: { 
+        metadata: { 
           type: NotificationTypeEnum.PARTNERSHIP_REJECTED,
           reason: rejectionReason.trim()
         }

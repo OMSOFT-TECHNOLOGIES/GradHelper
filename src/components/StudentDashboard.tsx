@@ -96,7 +96,7 @@ export function StudentDashboard({ onViewChange }: StudentDashboardProps) {
           return;
         }
 
-        const response = await fetch(`${API_BASE_URL}/accounts/student/dashboard`, {
+        const response = await fetch(`${API_BASE_URL}/accounts/student/dashboard/`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,

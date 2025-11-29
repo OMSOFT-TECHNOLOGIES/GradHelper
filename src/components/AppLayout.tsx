@@ -20,7 +20,7 @@ import {
   UserPlus,
   ChevronDown
 } from 'lucide-react';
-import { NotificationBell } from './NotificationBell';
+import { NotificationBellAPI } from './NotificationBellAPI';
 import { RefundRequestModal } from './RefundRequestModal';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import logoImage from '../assets/71eefff8a544630cca22726eead746724ce853a1.png';
@@ -99,7 +99,7 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'partnerships', label: 'Partnerships', icon: UserPlus },
     { id: 'billing', label: 'Billing', icon: CreditCard },
-    //{ id: 'messages', label: 'Messages', icon: MessageCircle },
+    { id: 'notifications', label: 'Notifications', icon: MessageCircle },
     { id: 'chat', label: 'Chat with Admin', icon: Send },
   ];
 
@@ -110,7 +110,8 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
     { id: 'meetings', label: 'Meetings', icon: Calendar },
     { id: 'billing', label: 'Billing', icon: CreditCard },
     { id: 'students', label: 'Students', icon: Users },
-    //{ id: 'messages', label: 'Messages', icon: MessageCircle },
+    { id: 'notifications', label: 'Notifications', icon: MessageCircle },
+    { id: 'notification-manager', label: 'Notification Manager', icon: Settings },
     { id: 'chat', label: 'Chat with Students', icon: Send },
     { id: 'testimonies', label: 'Testimonies', icon: Star },
     { id: 'help', label: 'Help Requests', icon: HelpCircle },
@@ -342,9 +343,10 @@ export function AppLayout({ children, userRole, currentView, onViewChange, user,
               </div>
 
               {/* Notification Bell */}
-              <NotificationBell 
+              <NotificationBellAPI 
                 userId={user?.id || 'demo-user'} 
-                userRole={userRole} 
+                userRole={userRole}
+                token={user?.token}
               />
               
               {/* Professional User Profile Dropdown */}

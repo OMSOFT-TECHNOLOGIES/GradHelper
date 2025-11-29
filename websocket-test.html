@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Notification Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .notification {
+            background-color: #e3f2fd;
+            border: 1px solid #bbdefb;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #messages {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket Notification Test</h1>
+        <p>This page tests the WebSocket connection to <code>ws://localhost:8000/ws/notifications/</code></p>
+        
+        <div id="status" class="status disconnected">Disconnected</div>
+        
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="sendTestAuth()">Send Auth Token</button>
+        <button onclick="clearMessages()">Clear Messages</button>
+        
+        <h3>Messages:</h3>
+        <div id="messages"></div>
+        
+        <h3>Test WebSocket Connection:</h3>
+        <p>1. Make sure your Django backend is running on localhost:8000 with WebSocket support</p>
+        <p>2. Set your JWT token in localStorage:</p>
+        <code style="background: #f0f0f0; padding: 10px; display: block; margin: 10px 0;">
+        // In browser console, run:
+        localStorage.setItem('gradhelper_token', 'your-jwt-token-here');
+        </code>
+        <p>3. Click "Connect" to establish WebSocket connection (token included in URL)</p>
+        <p>4. Watch for incoming notifications from your Django backend</p>
+        <p>5. The connection will fall back to REST API polling if WebSocket fails</p>
+    </div>
+
+    <script>
+        let socket = null;
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+
+        function updateStatus(message, isConnected) {
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${isConnected ? 'connected' : 'disconnected'}`;
+        }
+
+        function addMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'notification';
+            messageDiv.innerHTML = `
+                <strong>${new Date().toLocaleTimeString()}</strong><br>
+                ${message}
+            `;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function connect() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                addMessage('Already connected');
+                return;
+            }
+
+            // Use token from localStorage or default test token
+            const token = localStorage.getItem('gradhelper_token') || 'test-token-123';
+            const wsUrl = `ws://localhost:8000/ws/notifications/?token=${encodeURIComponent(token)}`;
+
+            try {
+                socket = new WebSocket(wsUrl);
+                
+                socket.onopen = function(event) {
+                    updateStatus(`Connected with token: ${token}`, true);
+                    addMessage(`✅ WebSocket connection established to ${wsUrl}`);
+                };
+
+                socket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        addMessage(`📨 <strong>Received:</strong> <pre>${JSON.stringify(data, null, 2)}</pre>`);
+                        
+                        if (data.type === 'notification') {
+                            addMessage(`🔔 <strong>New Notification:</strong> ${data.notification.title || 'No title'}<br>${data.notification.message || 'No message'}`);
+                            
+                            // Update unread count badge simulation
+                            if (data.unread_count !== undefined) {
+                                addMessage(`📊 <strong>Unread Count:</strong> ${data.unread_count}`);
+                            }
+                        }
+                        
+                        if (data.type === 'auth_success') {
+                            addMessage('✅ Authentication successful');
+                        }
+                        
+                        if (data.type === 'auth_error') {
+                            addMessage(`❌ Authentication failed: ${data.message || 'Unknown error'}`);
+                        }
+                    } catch (error) {
+                        addMessage(`⚠️ Failed to parse message: ${event.data}`);
+                    }
+                };
+
+                socket.onclose = function(event) {
+                    updateStatus(`Disconnected (Code: ${event.code}, Reason: ${event.reason})`, false);
+                    addMessage(`❌ WebSocket connection closed. Code: ${event.code}, Reason: ${event.reason || 'No reason'}`);
+                };
+
+                socket.onerror = function(error) {
+                    updateStatus('Connection Error', false);
+                    addMessage(`⚠️ WebSocket error: ${error.message || 'Connection failed'}`);
+                    addMessage('💡 Make sure your Django backend is running on localhost:8000 with WebSocket support');
+                };
+
+            } catch (error) {
+                updateStatus('Failed to Create Connection', false);
+                addMessage(`❌ Failed to create WebSocket: ${error.message}`);
+            }
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.close(1000, 'Manual disconnect');
+                socket = null;
+                updateStatus('Manually Disconnected', false);
+                addMessage('🔌 Manually disconnected');
+            } else {
+                addMessage('No active connection to disconnect');
+            }
+        }
+
+        function sendTestAuth() {
+            addMessage('ℹ️ Authentication is now handled via URL token parameter');
+            addMessage('💡 Token is included in WebSocket URL during connection');
+        }
+
+        function clearMessages() {
+            messagesDiv.innerHTML = '';
+        }
+
+        // Update notification badge simulation
+        function updateNotificationBadge(unreadCount) {
+            addMessage(`🔄 Updating notification badge to: ${unreadCount}`);
+        }
+
+        // Auto-connect on page load for testing
+        window.addEventListener('load', function() {
+            addMessage('🚀 Page loaded. Click "Connect" to test WebSocket connection.');
+        });
+    </script>
+</body>
+</html>

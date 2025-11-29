@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNotifications } from './NotificationContext';
+import { useNotifications } from './NotificationContextAPI';
 import { 
   meetingService, 
   Meeting, 
@@ -238,7 +238,7 @@ export function MeetingsView({ userRole, user }: MeetingsViewProps) {
             : `Your meeting request "${response.data.title}" has been sent for approval`,
           userId: userRole === 'admin' ? response.data.studentId : 'admin-1',
           userRole: userRole === 'admin' ? 'student' as const : 'admin' as const,
-          data: { meetingId: response.data.id }
+          metadata: { meetingId: response.data.id }
         };
 
         addNotification(notificationData);
@@ -290,7 +290,7 @@ export function MeetingsView({ userRole, user }: MeetingsViewProps) {
           message: `Meeting "${response.data.title}" has been ${newStatus}`,
           userId: response.data.studentId,
           userRole: 'student' as const,
-          data: { meetingId: response.data.id }
+          metadata: { meetingId: response.data.id }
         };
 
         addNotification(notificationData);
@@ -877,6 +877,7 @@ export function MeetingsView({ userRole, user }: MeetingsViewProps) {
           onCreate={handleCreateMeeting}
           availableTasks={availableTasks}
           loadingTasks={loadingTasks}
+          loading={loading}
         />
       )}
 
@@ -909,12 +910,13 @@ export function MeetingsView({ userRole, user }: MeetingsViewProps) {
 }
 
 // Create Meeting Modal Component
-function CreateMeetingModal({ userRole, onClose, onCreate, availableTasks = [], loadingTasks = false }: {
+function CreateMeetingModal({ userRole, onClose, onCreate, availableTasks = [], loadingTasks = false, loading = false }: {
   userRole: 'student' | 'admin';
   onClose: () => void;
   onCreate: (data: CreateMeetingData) => void;
   availableTasks?: Task[];
   loadingTasks?: boolean;
+  loading?: boolean;
 }) {
   const [formData, setFormData] = useState({
     title: '',
@@ -944,7 +946,7 @@ function CreateMeetingModal({ userRole, onClose, onCreate, availableTasks = [], 
   const filteredTasks = formattedTasks.filter((task: any) => 
     String(task.id).toLowerCase().includes(taskSearch.toLowerCase()) ||
     task.title.toLowerCase().includes(taskSearch.toLowerCase()) ||
-    task.student.toLowerCase().includes(taskSearch.toLowerCase())
+    (typeof task.student === 'string' ? task.student : task.student?.name || task.student?.username || '').toLowerCase().includes(taskSearch.toLowerCase())
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -1055,13 +1057,16 @@ function CreateMeetingModal({ userRole, onClose, onCreate, availableTasks = [], 
                       </option>
                       {filteredTasks.map((task: any) => (
                         <option key={task.id} value={String(task.id)}>
-                          {task.id} - {task.title} - {task.student}
+                          {task.id} - {task.title} - {typeof task.student === 'string' ? task.student : task.student?.name || task.student?.username || 'Unknown Student'}
                         </option>
                       ))}
                     </select>
                     {formData.taskId && (
                       <p className="text-sm text-green-600 mt-1">
-                        ✓ Task selected: {formattedTasks.find((t: any) => String(t.id) === String(formData.taskId))?.student}
+                        ✓ Task selected: {(() => {
+                          const task = formattedTasks.find((t: any) => String(t.id) === String(formData.taskId));
+                          return typeof task?.student === 'string' ? task.student : task?.student?.name || task?.student?.username || 'Unknown Student';
+                        })()}
                       </p>
                     )}
                     </div>
@@ -1208,11 +1213,18 @@ function CreateMeetingModal({ userRole, onClose, onCreate, availableTasks = [], 
           </div>
 
           <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>
               Cancel
             </button>
-            <button type="submit" className="btn btn-primary">
-              {userRole === 'student' ? 'Send Request' : 'Schedule Meeting'}
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? (
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{userRole === 'student' ? 'Sending...' : 'Scheduling...'}</span>
+                </div>
+              ) : (
+                userRole === 'student' ? 'Send Request' : 'Schedule Meeting'
+              )}
             </button>
           </div>
         </form>
